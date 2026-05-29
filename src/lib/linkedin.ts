@@ -51,6 +51,35 @@ const firstVisibleText = (selectors: string[]): string => {
   return ""
 }
 
+const parseLocationAndWorkplace = (text: string) => {
+  const cleaned = text.replace(/\s+/g, " ").trim()
+  const workplaceMatch = cleaned.match(/\b(remote|hybrid|on-site|onsite)\b/i)
+  const workplace = workplaceMatch
+    ? workplaceMatch[1].replace(/^onsite$/i, "On-site").replace(/^on-site$/i, "On-site")
+    : ""
+
+  const withoutMeta = cleaned
+    .replace(/\b(remote|hybrid|on-site|onsite)\b/gi, "")
+    .replace(/\b(full-time|part-time|contract|internship|temporary|volunteer)\b/gi, "")
+    .replace(/\b\d+\s*(applicants?|reposts?)\b/gi, "")
+    .replace(/\bpromoted\b/gi, "")
+    .replace(/\s*[·|]\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+
+  return {
+    location: withoutMeta,
+    workplace
+  }
+}
+
+const inferWorkplace = (text: string) => {
+  if (/\bremote\b/i.test(text)) return "Remote"
+  if (/\bhybrid\b/i.test(text)) return "Hybrid"
+  if (/\bon[-\s]?site\b/i.test(text)) return "On-site"
+  return ""
+}
+
 export const scrapeLinkedinJob = (): JobData | null => {
   if (!window.location.href.includes("linkedin.com/jobs")) {
     return null
@@ -77,6 +106,17 @@ export const scrapeLinkedinJob = (): JobData | null => {
     "a.topcard__org-name-link"
   ])
 
+  const detailsText = firstVisibleText([
+    ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
+    ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
+    ".jobs-unified-top-card__primary-description",
+    ".jobs-unified-top-card__bullet",
+    ".job-details-jobs-unified-top-card__tertiary-description-container",
+    ".topcard__flavor-row"
+  ])
+
+  const parsedDetails = parseLocationAndWorkplace(detailsText)
+
   const descriptionContainer =
     first([
       ".jobs-search__job-details--container .jobs-description-content__text",
@@ -98,6 +138,7 @@ export const scrapeLinkedinJob = (): JobData | null => {
     ])
 
   const description = formattedTextFrom(descriptionContainer)
+  const workplace = parsedDetails.workplace || inferWorkplace(`${detailsText}\n${description}`)
 
   if (!title || !company || description.length < 80) {
     return null
@@ -106,6 +147,8 @@ export const scrapeLinkedinJob = (): JobData | null => {
   return {
     title,
     company,
+    location: parsedDetails.location,
+    workplace,
     description,
     url: window.location.href,
     scrapedAt: new Date().toISOString()

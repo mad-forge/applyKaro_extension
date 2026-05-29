@@ -1,7 +1,10 @@
 import "~style.css"
 
 import { useEffect, useMemo, useState } from "react"
+import { Button } from "react95"
+import { ThemeProvider } from "styled-components"
 
+import { React95GlobalStyles, react95Theme } from "~lib/react95-theme"
 import type { JobData } from "~lib/types"
 
 type OptimizeResponse = {
@@ -287,19 +290,21 @@ function OptimizerPage() {
   }
 
   return (
-    <main className="plasmo-min-h-screen plasmo-bg-black plasmo-text-slate-100">
-      <div className="plasmo-relative">
+    <ThemeProvider theme={react95Theme}>
+      <React95GlobalStyles />
+      <main className="plasmo-min-h-screen plasmo-text-stone-950">
+        <div className="plasmo-relative">
       <div className="plasmo-mx-auto plasmo-grid plasmo-max-w-[1500px] plasmo-grid-cols-1 plasmo-gap-5 plasmo-p-6 lg:plasmo-grid-cols-[0.95fr_1.05fr]">
-        <section className="plasmo-rounded-3xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-6">
-          <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-slate-300">
+        <section className="win95-panel plasmo-p-6">
+          <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
             applyKaro
           </p>
           <h1 className="plasmo-mt-2 plasmo-text-2xl plasmo-font-semibold">Resume Optimizer</h1>
 
-          {loading && <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-slate-400">Loading job...</p>}
+          {loading && <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-stone-600">Loading job...</p>}
 
           {!loading && !job && (
-            <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-slate-400">
+            <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-stone-600">
               Open a LinkedIn job page, then click Optimize Resume from the extension popup.
             </p>
           )}
@@ -309,24 +314,29 @@ function OptimizerPage() {
               <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-4">
                 <div>
                   <h2 className="plasmo-text-2xl plasmo-font-semibold">{job.title}</h2>
-                  <p className="plasmo-mt-1 plasmo-text-base plasmo-text-slate-300">{job.company}</p>
+                  <p className="plasmo-mt-1 plasmo-text-base plasmo-text-stone-700">{job.company}</p>
+                  {(job.location || job.workplace) && (
+                    <p className="plasmo-mt-1 plasmo-text-sm plasmo-font-medium plasmo-text-stone-700">
+                      {[job.location, job.workplace].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                 </div>
-                <button
+                <Button variant="raised"
                   type="button"
                   onClick={() => chrome.tabs.create({ url: job.url })}
-                  className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
+                  className="plasmo-relative plasmo-overflow-hidden plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950">
                   Apply
-                </button>
+                </Button>
               </div>
 
-              <div className="plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+              <div className="plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto win95-panel plasmo-p-4">
                 <div className="plasmo-space-y-5">
                   {jobSections.map((section, index) => (
                     <section key={`${section.title}-${index}`}>
-                      <h3 className="plasmo-text-base plasmo-font-semibold plasmo-text-slate-100">
+                      <h3 className="plasmo-text-base plasmo-font-semibold plasmo-text-stone-950">
                         {section.title}
                       </h3>
-                      <p className="plasmo-mt-3 plasmo-whitespace-pre-wrap plasmo-text-sm plasmo-leading-7 plasmo-text-slate-300">
+                      <p className="plasmo-mt-3 plasmo-whitespace-pre-wrap plasmo-text-sm plasmo-leading-7 plasmo-text-stone-700">
                         {section.body}
                       </p>
                     </section>
@@ -337,75 +347,75 @@ function OptimizerPage() {
           )}
         </section>
 
-        <section className="plasmo-rounded-3xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-6">
+        <section className="win95-panel plasmo-p-6">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
             <h2 className="plasmo-text-xl plasmo-font-semibold">Base resume</h2>
             <input
               type="file"
               accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
               onChange={(event) => readResumeFile(event.target.files?.[0])}
-              className="plasmo-max-w-[220px] plasmo-text-xs plasmo-text-slate-300 file:plasmo-mr-3 file:plasmo-rounded-full file:plasmo-border file:plasmo-border-slate-500 file:plasmo-bg-slate-700 file:plasmo-px-4 file:plasmo-py-2 file:plasmo-text-slate-100"
+              className="plasmo-max-w-[220px] plasmo-text-xs plasmo-text-stone-700 file:plasmo-mr-3 file:plasmo-border file:plasmo-border-stone-500 file:plasmo-bg-[#A0A0A0] file:plasmo-px-4 file:plasmo-py-2 file:plasmo-text-stone-950"
             />
           </div>
 
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none plasmo-rounded-2xl plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/85 plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-100 plasmo-outline-none"
+            className="plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none win95-input plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-950 plasmo-outline-none"
             placeholder={parsingResume ? "Reading PDF resume..." : "Paste your base resume here..."}
           />
 
           <div className="plasmo-mt-4 plasmo-flex plasmo-gap-3">
-            <button
+            <Button variant="raised"
               type="button"
               onClick={saveResume}
               disabled={savingResume || parsingResume || !resumeText.trim()}
-              className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/85 plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-slate-500">
+              className="plasmo-relative plasmo-overflow-hidden plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-500">
               {savingResume ? "Saving..." : "Save Resume"}
-            </button>
-            <button
+            </Button>
+            <Button variant="raised"
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || parsingResume || !job || !resumeText.trim()}
-              className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800 disabled:plasmo-bg-slate-700 disabled:plasmo-text-slate-400">
+              className="plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-600">
               {optimizing ? "Optimizing..." : "Generate ATS Resume"}
-            </button>
+            </Button>
           </div>
 
           {error && <p className="plasmo-mt-4 plasmo-text-sm plasmo-text-rose-300">{error}</p>}
 
           {result && (
             <div className="plasmo-mt-5 plasmo-space-y-4">
-              <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+              <div className="win95-panel plasmo-p-4">
                 <p className="plasmo-text-base plasmo-font-semibold">
-                  ATS Score: <span className="plasmo-text-slate-200">{result.ats_score_out_of_100}/100</span>
+                  ATS Score: <span className="plasmo-text-stone-800">{result.ats_score_out_of_100}/100</span>
                 </p>
-                <p className="plasmo-mt-3 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-300">
+                <p className="plasmo-mt-3 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
                   Missing Keywords: {result.missing_keywords?.join(", ") || "None"}
                 </p>
               </div>
 
-              <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+              <div className="win95-panel plasmo-p-4">
                 <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Optimized resume</h3>
-                  <button
+                  <Button variant="raised"
                     type="button"
                     onClick={downloadOptimizedResume}
-                    className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
+                    className="plasmo-relative plasmo-overflow-hidden plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-950">
                     Download PDF
-                  </button>
+                  </Button>
                 </div>
                 <textarea
                   readOnly
                   value={result.optimized_resume_text || ""}
-                  className="plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none plasmo-rounded-xl plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/85 plasmo-p-3 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-100"
+                  className="plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none win95-input plasmo-p-3 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-950"
                 />
               </div>
 
               {result.keyword_injection_plan && (
-                <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+                <div className="win95-panel plasmo-p-4">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Keyword plan</h3>
-                  <ul className="plasmo-mt-3 plasmo-max-h-44 plasmo-space-y-2 plasmo-overflow-y-auto plasmo-pr-2 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-300">
+                  <ul className="plasmo-mt-3 plasmo-max-h-44 plasmo-space-y-2 plasmo-overflow-y-auto plasmo-pr-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
                     {result.keyword_injection_plan.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
@@ -414,23 +424,23 @@ function OptimizerPage() {
               )}
 
               {result.change_log && result.change_log.length > 0 && (
-                <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+                <div className="win95-panel plasmo-p-4">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Changes made</h3>
                   <div className="plasmo-mt-3 plasmo-max-h-[360px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-2">
                     {result.change_log.map((change, index) => (
                       <div
                         key={`${change.section}-${index}`}
-                        className="plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-slate-900/55 plasmo-p-3">
-                        <p className="plasmo-text-xs plasmo-font-semibold plasmo-text-slate-200">
+                        className="win95-panel plasmo-p-3">
+                        <p className="plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">
                           {change.section}
                         </p>
-                        <p className="plasmo-mt-2 plasmo-text-xs plasmo-leading-5 plasmo-text-slate-400">
+                        <p className="plasmo-mt-2 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-600">
                           Before: {change.before}
                         </p>
-                        <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-slate-200">
+                        <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-800">
                           After: {change.after}
                         </p>
-                        <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-slate-400">
+                        <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-600">
                           Why: {change.reason}
                         </p>
                       </div>
@@ -442,8 +452,9 @@ function OptimizerPage() {
           )}
         </section>
       </div>
-      </div>
-    </main>
+        </div>
+      </main>
+    </ThemeProvider>
   )
 }
 

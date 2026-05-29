@@ -1,6 +1,8 @@
 export type JobData = {
   title: string
   company: string
+  location?: string
+  workplace?: string
   description: string
   url: string
   scrapedAt: string

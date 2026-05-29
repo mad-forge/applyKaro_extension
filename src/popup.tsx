@@ -1,14 +1,18 @@
 import "~style.css"
 
 import { useEffect, useMemo, useState } from "react"
+import { Button } from "react95"
+import { ThemeProvider } from "styled-components"
 
-import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision"
+import { React95GlobalStyles, react95Theme } from "~lib/react95-theme"
 import type { JobData, RuntimeMessage } from "~lib/types"
 
 type SavedJob = {
   id: string
   title: string
   company: string
+  location?: string
+  workplace?: string
   description: string
   source_url: string | null
   status: "applied" | "interviewing" | "rejected"
@@ -27,6 +31,7 @@ const DEMO_USER_ID =
   process.env.PLASMO_PUBLIC_DEMO_USER_ID || "00000000-0000-0000-0000-000000000001"
 
 const LOCAL_USER_ID_KEY = "interviewMintLocalUserId"
+const SAVED_JOB_META_KEY = "interviewMintSavedJobMeta"
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const bytesToHex = (bytes: Uint8Array) => Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("")
@@ -48,6 +53,30 @@ const getApiHeaders = (userId: string) => {
   }
 }
 
+const inferWorkplace = (text: string) => {
+  if (/\bremote\b/i.test(text)) return "Remote"
+  if (/\bhybrid\b/i.test(text)) return "Hybrid"
+  if (/\bon[-\s]?site\b/i.test(text)) return "On-site"
+  return ""
+}
+
+const getExpiryLabel = (createdAt: string) => {
+  const expiresAt = new Date(new Date(createdAt).getTime() + 3 * 24 * 60 * 60 * 1000)
+  const diffMs = expiresAt.getTime() - Date.now()
+
+  if (diffMs <= 0) return "Auto-removes soon"
+
+  const diffHours = Math.ceil(diffMs / (60 * 60 * 1000))
+  if (diffHours < 24) return `Auto-removes in ${diffHours}h`
+
+  return `Auto-removes in ${Math.ceil(diffHours / 24)}d`
+}
+
+const getPreviewText = (text: string, maxLength = 150) => {
+  const cleaned = text.replace(/\s+/g, " ").trim()
+  return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength).trim()}...` : cleaned
+}
+
 function IndexPopup() {
   const [job, setJob] = useState<JobData | null>(null)
   const [savedJobs, setSavedJobs] = useState<SavedJob[]>([])
@@ -62,7 +91,7 @@ function IndexPopup() {
   const [showOptimizer, setShowOptimizer] = useState(false)
   const [resumeText, setResumeText] = useState("")
   const [activeUserId, setActiveUserId] = useState(DEMO_USER_ID)
-  const [activeUserLabel, setActiveUserLabel] = useState("Guest user")
+  const [activeUserLabel, setActiveUserLabel] = useState("Dummy user")
 
   const apiHeaders = useMemo(() => getApiHeaders(activeUserId), [activeUserId])
 
@@ -101,7 +130,7 @@ function IndexPopup() {
           const seed = profileEmail ? `email:${profileEmail}` : `profile:${profileId}`
           const profileUuid = await deriveDeterministicUuid(seed)
           setActiveUserId(profileUuid)
-          setActiveUserLabel(profileEmail || "Chrome user")
+          setActiveUserLabel("Dummy user")
           return
         }
       } catch {
@@ -110,12 +139,12 @@ function IndexPopup() {
 
       const localUserId = await getOrCreateLocalUserId()
       setActiveUserId(localUserId)
-      setActiveUserLabel("Local profile")
+      setActiveUserLabel("Dummy user")
     }
 
     loadIdentity().catch(() => {
       setActiveUserId(DEMO_USER_ID)
-      setActiveUserLabel("Guest user")
+      setActiveUserLabel("Dummy user")
     })
   }, [])
 
@@ -165,6 +194,32 @@ function IndexPopup() {
             return ""
           }
 
+          const parseLocationAndWorkplace = (text: string) => {
+            const cleaned = text.replace(/\s+/g, " ").trim()
+            const workplaceMatch = cleaned.match(/\b(remote|hybrid|on-site|onsite)\b/i)
+            const workplace = workplaceMatch
+              ? workplaceMatch[1].replace(/^onsite$/i, "On-site").replace(/^on-site$/i, "On-site")
+              : ""
+
+            const location = cleaned
+              .replace(/\b(remote|hybrid|on-site|onsite)\b/gi, "")
+              .replace(/\b(full-time|part-time|contract|internship|temporary|volunteer)\b/gi, "")
+              .replace(/\b\d+\s*(applicants?|reposts?)\b/gi, "")
+              .replace(/\bpromoted\b/gi, "")
+              .replace(/\s*[·|]\s*/g, " ")
+              .replace(/\s{2,}/g, " ")
+              .trim()
+
+            return { location, workplace }
+          }
+
+          const inferWorkplace = (text: string) => {
+            if (/\bremote\b/i.test(text)) return "Remote"
+            if (/\bhybrid\b/i.test(text)) return "Hybrid"
+            if (/\bon[-\s]?site\b/i.test(text)) return "On-site"
+            return ""
+          }
+
           if (!window.location.href.includes("linkedin.com/jobs")) return null
 
           const title = visibleText([
@@ -184,6 +239,15 @@ function IndexPopup() {
             ".job-view-layout .job-details-jobs-unified-top-card__company-name",
             ".jobs-unified-top-card__company-name a",
             ".jobs-unified-top-card__company-name"
+          ])
+
+          const detailsText = visibleText([
+            ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
+            ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
+            ".jobs-unified-top-card__primary-description",
+            ".jobs-unified-top-card__bullet",
+            ".job-details-jobs-unified-top-card__tertiary-description-container",
+            ".topcard__flavor-row"
           ])
 
           const descriptionContainer =
@@ -206,11 +270,15 @@ function IndexPopup() {
             ])
 
           const description = formattedTextFrom(descriptionContainer)
+          const parsedDetails = parseLocationAndWorkplace(detailsText)
+          const workplace = parsedDetails.workplace || inferWorkplace(`${detailsText}\n${description}`)
           if (!title || !company || description.length < 80) return null
 
           return {
             title,
             company,
+            location: parsedDetails.location,
+            workplace,
             description,
             url: window.location.href,
             scrapedAt: new Date().toISOString()
@@ -275,7 +343,20 @@ function IndexPopup() {
       const response = await fetch(`${API_BASE_URL}/api/jobs`, { headers: apiHeaders })
       const body = await response.json()
       if (!response.ok) throw new Error(body?.error || "Could not load saved jobs")
-      setSavedJobs(body.jobs || [])
+      const storedMeta = await chrome.storage.local.get(SAVED_JOB_META_KEY)
+      const metaByUrl = (storedMeta?.[SAVED_JOB_META_KEY] || {}) as Record<
+        string,
+        Pick<JobData, "location" | "workplace">
+      >
+      const jobs = ((body.jobs || []) as SavedJob[]).map((savedJob) => {
+        const cached = savedJob.source_url ? metaByUrl[savedJob.source_url] : undefined
+        return {
+          ...savedJob,
+          location: savedJob.location || cached?.location,
+          workplace: savedJob.workplace || cached?.workplace || inferWorkplace(savedJob.description)
+        }
+      })
+      setSavedJobs(jobs)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -295,12 +376,28 @@ function IndexPopup() {
         body: JSON.stringify({
           title: job.title,
           company: job.company,
+          location: job.location,
+          workplace: job.workplace,
           description: job.description,
           source_url: job.url
         })
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) throw new Error(body?.error || "Failed to save job")
+      const storedMeta = await chrome.storage.local.get(SAVED_JOB_META_KEY)
+      const metaByUrl = (storedMeta?.[SAVED_JOB_META_KEY] || {}) as Record<
+        string,
+        Pick<JobData, "location" | "workplace">
+      >
+      await chrome.storage.local.set({
+        [SAVED_JOB_META_KEY]: {
+          ...metaByUrl,
+          [job.url]: {
+            location: job.location,
+            workplace: job.workplace
+          }
+        }
+      })
       await fetchSavedJobs()
       setShowSavedJobs(true)
     } catch (e) {
@@ -402,41 +499,47 @@ function IndexPopup() {
   }
 
   return (
-    <div className="plasmo-relative plasmo-w-[380px] plasmo-min-h-[560px] plasmo-overflow-hidden plasmo-bg-black plasmo-text-slate-100">
-      <BackgroundBeamsWithCollision className="plasmo-h-full" />
-      <div className="plasmo-relative plasmo-p-4">
+    <ThemeProvider theme={react95Theme}>
+      <React95GlobalStyles />
+      <div className="plasmo-relative plasmo-w-[380px] plasmo-overflow-hidden plasmo-bg-[#c0c0c0] plasmo-text-stone-950">
+      <div className={showSavedJobs ? "plasmo-hidden" : "plasmo-relative plasmo-px-4 plasmo-pb-4 plasmo-pt-4"}>
         <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
           <div>
-            <p className="plasmo-text-xs plasmo-font-medium plasmo-uppercase plasmo-tracking-widest plasmo-text-slate-300">
+            <p className="plasmo-text-xs plasmo-font-medium plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
               applyKaro
             </p>
-            <h1 className="plasmo-mt-1.5 plasmo-text-[24px] plasmo-leading-[1.08] plasmo-font-semibold plasmo-text-slate-50">
-              Job Optimizer
+            <h1 className="plasmo-mt-1.5 plasmo-text-[24px] plasmo-leading-[1.08] plasmo-font-semibold plasmo-text-stone-950">
+              Career Console
             </h1>
-            <p className="plasmo-mt-2 plasmo-inline-flex plasmo-max-w-[190px] plasmo-items-center plasmo-rounded-full plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/70 plasmo-px-2.5 plasmo-py-1 plasmo-text-[10px] plasmo-font-medium plasmo-text-slate-200">
+            <p className="plasmo-mt-2 plasmo-inline-flex plasmo-max-w-[190px] plasmo-items-center win95-inset plasmo-px-2.5 plasmo-py-1 plasmo-text-[10px] plasmo-font-medium plasmo-text-stone-800">
               {activeUserLabel}
             </p>
           </div>
-          <button
+          <Button variant="raised"
             type="button"
             onClick={openSavedJobs}
-            className="plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-5 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
+            className="plasmo-relative plasmo-overflow-hidden plasmo-whitespace-nowrap plasmo-px-5 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold plasmo-text-stone-950">
             View Saved Jobs
-          </button>
+          </Button>
         </div>
 
-        <div className="plasmo-mt-4 plasmo-rounded-[30px] plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
-          {loadingJob && <p className="plasmo-text-sm plasmo-text-slate-400">Loading job details...</p>}
+        <div className="plasmo-mt-4 win95-panel plasmo-p-4">
+          {loadingJob && <p className="plasmo-text-sm plasmo-text-stone-600">Loading job details...</p>}
           {!loadingJob && !job && (
-            <p className="plasmo-text-sm plasmo-text-slate-400">
+            <p className="plasmo-text-sm plasmo-text-stone-600">
               Open a LinkedIn job page to extract title, company, and description.
             </p>
           )}
           {job && (
             <>
-              <h2 className="plasmo-text-[18px] plasmo-leading-[1.2] plasmo-font-semibold plasmo-text-slate-50">{job.title}</h2>
-              <p className="plasmo-mt-1.5 plasmo-text-[13px] plasmo-font-medium plasmo-text-slate-300">{job.company}</p>
-              <p className="plasmo-mt-3 plasmo-text-[12px] plasmo-leading-[1.45] plasmo-text-slate-200">
+              <h2 className="plasmo-text-[18px] plasmo-leading-[1.2] plasmo-font-semibold plasmo-text-stone-950">{job.title}</h2>
+              <p className="plasmo-mt-1.5 plasmo-text-[13px] plasmo-font-medium plasmo-text-stone-700">{job.company}</p>
+              {(job.location || job.workplace) && (
+                <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-stone-700">
+                  {[job.location, job.workplace].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              <p className="plasmo-mt-3 plasmo-text-[12px] plasmo-leading-[1.45] plasmo-text-stone-800">
                 {shortDescription}
               </p>
             </>
@@ -444,70 +547,81 @@ function IndexPopup() {
         </div>
 
         <div className="plasmo-mt-4 plasmo-flex plasmo-gap-2.5">
-          <button
+          <Button variant="raised"
             type="button"
             onClick={saveJob}
             disabled={!job || saving}
-            className="plasmo-flex-1 plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-slate-500/70 plasmo-bg-slate-800/85 plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-700/90 disabled:plasmo-border-slate-700 disabled:plasmo-bg-slate-800/40 disabled:plasmo-text-slate-500">
+            className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-500">
             {saving ? "Saving..." : "Save Job"}
-          </button>
-          <button
+          </Button>
+          <Button variant="raised"
             type="button"
             onClick={openOptimizer}
             disabled={!job}
-            className="plasmo-flex-1 plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800 disabled:plasmo-border-slate-700 disabled:plasmo-bg-slate-900/40 disabled:plasmo-text-slate-500">
+            className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-500">
             Optimize Resume
-          </button>
+          </Button>
         </div>
 
         {error && <p className="plasmo-mt-3 plasmo-text-xs plasmo-text-rose-300">{error}</p>}
       </div>
 
       {showSavedJobs && (
-        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-10 plasmo-bg-black/95 plasmo-p-5">
+        <div className="plasmo-relative plasmo-bg-[#adadad] plasmo-p-4">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
-            <h2 className="plasmo-text-lg plasmo-font-semibold">Saved Jobs</h2>
-            <button
+            <h2 className="plasmo-text-[18px] plasmo-font-semibold">Saved Jobs</h2>
+            <Button variant="raised"
               type="button"
               onClick={() => setShowSavedJobs(false)}
-              className="plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-1 plasmo-text-xs">
+              className="plasmo-px-3 plasmo-py-1 plasmo-text-[11px]">
               Close
-            </button>
+            </Button>
           </div>
 
-          <div className="plasmo-mt-4 plasmo-max-h-[520px] plasmo-space-y-3 plasmo-overflow-y-auto">
-            {loadingSavedJobs && <p className="plasmo-text-sm plasmo-text-slate-400">Loading saved jobs...</p>}
+          <div className="plasmo-mt-4 plasmo-max-h-[500px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-1">
+            {loadingSavedJobs && <p className="plasmo-text-sm plasmo-text-stone-600">Loading saved jobs...</p>}
             {!loadingSavedJobs && savedJobs.length === 0 && (
-              <p className="plasmo-text-sm plasmo-text-slate-400">No saved jobs yet.</p>
+              <p className="plasmo-text-sm plasmo-text-stone-600">No saved jobs yet.</p>
             )}
             {savedJobs.map((savedJob) => (
               <div
                 key={savedJob.id}
-                className="plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
-                <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
-                  <div>
+                className="win95-panel-dark plasmo-p-3">
+                <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-2">
+                  <div className="plasmo-min-w-0 plasmo-flex-1">
                     <p className="plasmo-text-sm plasmo-font-semibold">{savedJob.title}</p>
-                    <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-slate-300">{savedJob.company}</p>
+                    <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-stone-700">{savedJob.company}</p>
+                    {(savedJob.location || savedJob.workplace) && (
+                      <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-stone-800">
+                        {[savedJob.location, savedJob.workplace].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                   </div>
-                  <div className="plasmo-flex plasmo-gap-2">
-                    <button
+                  <div className="plasmo-flex plasmo-shrink-0 plasmo-gap-1.5">
+                    <Button variant="raised"
                       type="button"
                       onClick={() => optimizeSavedJob(savedJob)}
-                      className="plasmo-rounded-lg plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100">
+                      className="plasmo-relative plasmo-overflow-hidden plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold plasmo-text-stone-950">
                       Optimize
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="raised"
                       type="button"
                       onClick={() => savedJob.source_url && chrome.tabs.create({ url: savedJob.source_url })}
-                      className="plasmo-rounded-lg plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
+                      className="plasmo-relative plasmo-overflow-hidden plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold plasmo-text-stone-950">
                       Apply
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
-                <div className="plasmo-mt-3 plasmo-border-l plasmo-border-slate-700 plasmo-pl-3 plasmo-text-xs plasmo-text-slate-400">
+                {savedJob.description && (
+                  <p className="plasmo-mt-3 plasmo-text-[11px] plasmo-leading-5 plasmo-text-stone-800">
+                    {getPreviewText(savedJob.description)}
+                  </p>
+                )}
+
+                <div className="plasmo-mt-3 plasmo-border-l-2 plasmo-border-stone-600 plasmo-pl-3 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
                   <p>Saved {new Date(savedJob.created_at).toLocaleDateString()}</p>
-                  <p>LinkedIn job page saved</p>
+                  <p>{getExpiryLabel(savedJob.created_at)}</p>
                 </div>
               </div>
             ))}
@@ -516,29 +630,29 @@ function IndexPopup() {
       )}
 
       {showOptimizer && (
-        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-bg-black/95 plasmo-p-5">
+        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-bg-[#c0c0c0] plasmo-p-5">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
             <h2 className="plasmo-text-lg plasmo-font-semibold">Resume Optimizer</h2>
-            <button
+            <Button variant="raised"
               type="button"
               onClick={() => setShowOptimizer(false)}
-              className="plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-1 plasmo-text-xs">
+              className="plasmo-px-3 plasmo-py-1 plasmo-text-xs">
               Close
-            </button>
+            </Button>
           </div>
 
-          <div className="plasmo-mt-4 plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+          <div className="plasmo-mt-4 win95-panel plasmo-p-4">
             <p className="plasmo-text-sm plasmo-font-semibold">{job?.title}</p>
-            <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-slate-300">{job?.company}</p>
+            <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-stone-700">{job?.company}</p>
           </div>
 
-          <label className="plasmo-mt-4 plasmo-block plasmo-text-xs plasmo-font-medium plasmo-text-slate-300">
+          <label className="plasmo-mt-4 plasmo-block plasmo-text-xs plasmo-font-medium plasmo-text-stone-700">
             Base resume
           </label>
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none plasmo-rounded-xl plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/80 plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-slate-100 plasmo-outline-none"
+            className="plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none win95-input plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-stone-950 plasmo-outline-none"
             placeholder="Paste your resume here..."
           />
 
@@ -546,39 +660,40 @@ function IndexPopup() {
             type="file"
             accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
             onChange={(event) => readResumeFile(event.target.files?.[0])}
-            className="plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-slate-300 file:plasmo-mr-3 file:plasmo-rounded-lg file:plasmo-border-0 file:plasmo-bg-slate-700 file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-slate-100"
+            className="plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-stone-700 file:plasmo-mr-3 file:plasmo-rounded-lg file:plasmo-border-0 file:plasmo-bg-[#A0A0A0] file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-stone-950"
           />
 
           <div className="plasmo-mt-4 plasmo-flex plasmo-gap-2">
-            <button
+            <Button variant="raised"
               type="button"
               onClick={saveResume}
               disabled={savingResume || !resumeText.trim()}
-              className="plasmo-flex-1 plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-slate-500">
+              className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-500">
               {savingResume ? "Saving..." : "Save Resume"}
-            </button>
-            <button
+            </Button>
+            <Button variant="raised"
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || !job || !resumeText.trim()}
-              className="plasmo-flex-1 plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800 disabled:plasmo-bg-slate-700 disabled:plasmo-text-slate-400">
+              className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-600">
               {optimizing ? "Optimizing..." : "Run ATS"}
-            </button>
+            </Button>
           </div>
 
           {result && (
-            <div className="plasmo-mt-4 plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
+            <div className="plasmo-mt-4 win95-panel plasmo-p-4">
               <p className="plasmo-text-sm plasmo-font-semibold">
-                ATS Score: <span className="plasmo-text-slate-200">{result.ats_score_out_of_100}/100</span>
+                ATS Score: <span className="plasmo-text-stone-800">{result.ats_score_out_of_100}/100</span>
               </p>
-              <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-slate-300">
+              <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-stone-700">
                 Missing Keywords: {result.missing_keywords.join(", ") || "None"}
               </p>
             </div>
           )}
         </div>
       )}
-    </div>
+      </div>
+    </ThemeProvider>
   )
 }
 
