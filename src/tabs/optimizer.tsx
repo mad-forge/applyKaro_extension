@@ -287,13 +287,11 @@ function OptimizerPage() {
   }
 
   return (
-    <main className="plasmo-min-h-screen plasmo-bg-[#050505] plasmo-text-slate-100">
-      <div className="plasmo-absolute plasmo-inset-0 plasmo-bg-gradient-to-br plasmo-from-black/52 plasmo-via-[#1f1f1f]/40 plasmo-to-[#2c2b2b]/50" />
-      <div className="plasmo-absolute plasmo-inset-0 plasmo-bg-[linear-gradient(115deg,transparent_18%,rgba(123,137,156,0.17)_50%,transparent_82%)]" />
+    <main className="plasmo-min-h-screen plasmo-bg-black plasmo-text-slate-100">
       <div className="plasmo-relative">
       <div className="plasmo-mx-auto plasmo-grid plasmo-max-w-[1500px] plasmo-grid-cols-1 plasmo-gap-5 plasmo-p-6 lg:plasmo-grid-cols-[0.95fr_1.05fr]">
-        <section className="plasmo-rounded-3xl plasmo-border plasmo-border-white/20 plasmo-bg-[rgba(44,43,43,0.42)] plasmo-p-6 plasmo-shadow-[0_12px_40px_rgba(0,0,0,0.35)] plasmo-backdrop-blur-xl">
-          <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-emerald-300">
+        <section className="plasmo-rounded-3xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-6">
+          <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-slate-300">
             applyKaro
           </p>
           <h1 className="plasmo-mt-2 plasmo-text-2xl plasmo-font-semibold">Resume Optimizer</h1>
@@ -311,17 +309,17 @@ function OptimizerPage() {
               <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-4">
                 <div>
                   <h2 className="plasmo-text-2xl plasmo-font-semibold">{job.title}</h2>
-                  <p className="plasmo-mt-1 plasmo-text-base plasmo-text-emerald-300">{job.company}</p>
+                  <p className="plasmo-mt-1 plasmo-text-base plasmo-text-slate-300">{job.company}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => chrome.tabs.create({ url: job.url })}
-                  className="plasmo-rounded-full plasmo-border plasmo-border-white/25 plasmo-bg-[rgba(148,163,184,0.26)] plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 plasmo-backdrop-blur-xl hover:plasmo-bg-[rgba(148,163,184,0.35)]">
+                  className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
                   Apply
                 </button>
               </div>
 
-              <div className="plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto plasmo-rounded-2xl plasmo-border plasmo-border-white/18 plasmo-bg-[rgba(56,55,55,0.42)] plasmo-p-4 plasmo-backdrop-blur-xl">
+              <div className="plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
                 <div className="plasmo-space-y-5">
                   {jobSections.map((section, index) => (
                     <section key={`${section.title}-${index}`}>
@@ -339,21 +337,21 @@ function OptimizerPage() {
           )}
         </section>
 
-        <section className="plasmo-rounded-3xl plasmo-border plasmo-border-white/20 plasmo-bg-[rgba(44,43,43,0.42)] plasmo-p-6 plasmo-shadow-[0_12px_40px_rgba(0,0,0,0.35)] plasmo-backdrop-blur-xl">
+        <section className="plasmo-rounded-3xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-6">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
             <h2 className="plasmo-text-xl plasmo-font-semibold">Base resume</h2>
             <input
               type="file"
               accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
               onChange={(event) => readResumeFile(event.target.files?.[0])}
-              className="plasmo-max-w-[220px] plasmo-text-xs plasmo-text-slate-300 file:plasmo-mr-3 file:plasmo-rounded-full file:plasmo-border file:plasmo-border-white/22 file:plasmo-bg-[rgba(148,163,184,0.22)] file:plasmo-px-4 file:plasmo-py-2 file:plasmo-text-slate-100"
+              className="plasmo-max-w-[220px] plasmo-text-xs plasmo-text-slate-300 file:plasmo-mr-3 file:plasmo-rounded-full file:plasmo-border file:plasmo-border-slate-500 file:plasmo-bg-slate-700 file:plasmo-px-4 file:plasmo-py-2 file:plasmo-text-slate-100"
             />
           </div>
 
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none plasmo-rounded-2xl plasmo-border plasmo-border-white/18 plasmo-bg-[rgba(167,167,169,0.62)] plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-100 plasmo-outline-none plasmo-backdrop-blur-xl"
+            className="plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none plasmo-rounded-2xl plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/85 plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-100 plasmo-outline-none"
             placeholder={parsingResume ? "Reading PDF resume..." : "Paste your base resume here..."}
           />
 
@@ -362,14 +360,14 @@ function OptimizerPage() {
               type="button"
               onClick={saveResume}
               disabled={savingResume || parsingResume || !resumeText.trim()}
-              className="plasmo-rounded-full plasmo-border plasmo-border-white/24 plasmo-bg-[rgba(148,163,184,0.28)] plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-backdrop-blur-xl disabled:plasmo-text-slate-500">
+              className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/85 plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-slate-500">
               {savingResume ? "Saving..." : "Save Resume"}
             </button>
             <button
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || parsingResume || !job || !resumeText.trim()}
-              className="plasmo-rounded-full plasmo-border plasmo-border-emerald-200/30 plasmo-bg-[linear-gradient(135deg,rgba(104,197,165,0.55),rgba(83,170,137,0.42))] plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-white plasmo-backdrop-blur-xl hover:plasmo-bg-[linear-gradient(135deg,rgba(104,197,165,0.66),rgba(83,170,137,0.50))] disabled:plasmo-bg-slate-700 disabled:plasmo-text-slate-400">
+              className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800 disabled:plasmo-bg-slate-700 disabled:plasmo-text-slate-400">
               {optimizing ? "Optimizing..." : "Generate ATS Resume"}
             </button>
           </div>
@@ -378,34 +376,34 @@ function OptimizerPage() {
 
           {result && (
             <div className="plasmo-mt-5 plasmo-space-y-4">
-              <div className="plasmo-rounded-2xl plasmo-border plasmo-border-white/20 plasmo-bg-[linear-gradient(145deg,rgba(44,43,43,0.56),rgba(56,55,55,0.38))] plasmo-p-4 plasmo-shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] plasmo-backdrop-blur-2xl">
+              <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
                 <p className="plasmo-text-base plasmo-font-semibold">
-                  ATS Score: <span className="plasmo-text-emerald-300">{result.ats_score_out_of_100}/100</span>
+                  ATS Score: <span className="plasmo-text-slate-200">{result.ats_score_out_of_100}/100</span>
                 </p>
                 <p className="plasmo-mt-3 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-300">
                   Missing Keywords: {result.missing_keywords?.join(", ") || "None"}
                 </p>
               </div>
 
-              <div className="plasmo-rounded-2xl plasmo-border plasmo-border-white/20 plasmo-bg-[linear-gradient(145deg,rgba(44,43,43,0.56),rgba(56,55,55,0.38))] plasmo-p-4 plasmo-shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] plasmo-backdrop-blur-2xl">
+              <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
                 <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Optimized resume</h3>
                   <button
                     type="button"
                     onClick={downloadOptimizedResume}
-                    className="plasmo-rounded-full plasmo-border plasmo-border-white/30 plasmo-bg-[linear-gradient(135deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08))] plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 plasmo-backdrop-blur-2xl hover:plasmo-bg-white/25">
+                    className="plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
                     Download PDF
                   </button>
                 </div>
                 <textarea
                   readOnly
                   value={result.optimized_resume_text || ""}
-                  className="plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none plasmo-rounded-xl plasmo-border plasmo-border-white/20 plasmo-bg-[linear-gradient(145deg,rgba(56,55,55,0.56),rgba(44,43,43,0.36))] plasmo-p-3 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-100 plasmo-backdrop-blur-2xl"
+                  className="plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none plasmo-rounded-xl plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/85 plasmo-p-3 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-100"
                 />
               </div>
 
               {result.keyword_injection_plan && (
-                <div className="plasmo-rounded-2xl plasmo-border plasmo-border-white/15 plasmo-bg-[#2c2b2b]/45 plasmo-p-4 plasmo-backdrop-blur-xl">
+                <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Keyword plan</h3>
                   <ul className="plasmo-mt-3 plasmo-max-h-44 plasmo-space-y-2 plasmo-overflow-y-auto plasmo-pr-2 plasmo-text-sm plasmo-leading-6 plasmo-text-slate-300">
                     {result.keyword_injection_plan.map((item) => (
@@ -416,14 +414,14 @@ function OptimizerPage() {
               )}
 
               {result.change_log && result.change_log.length > 0 && (
-                <div className="plasmo-rounded-2xl plasmo-border plasmo-border-white/15 plasmo-bg-[#2c2b2b]/45 plasmo-p-4 plasmo-backdrop-blur-xl">
+                <div className="plasmo-rounded-2xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Changes made</h3>
                   <div className="plasmo-mt-3 plasmo-max-h-[360px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-2">
                     {result.change_log.map((change, index) => (
                       <div
                         key={`${change.section}-${index}`}
-                        className="plasmo-rounded-xl plasmo-border plasmo-border-white/10 plasmo-bg-white/5 plasmo-p-3 plasmo-backdrop-blur-md">
-                        <p className="plasmo-text-xs plasmo-font-semibold plasmo-text-emerald-300">
+                        className="plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-slate-900/55 plasmo-p-3">
+                        <p className="plasmo-text-xs plasmo-font-semibold plasmo-text-slate-200">
                           {change.section}
                         </p>
                         <p className="plasmo-mt-2 plasmo-text-xs plasmo-leading-5 plasmo-text-slate-400">

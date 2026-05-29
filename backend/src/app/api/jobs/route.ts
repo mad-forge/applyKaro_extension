@@ -9,6 +9,18 @@ export async function GET(request: NextRequest) {
     const userId = getUserIdFromRequest(request)
     const supabaseAdmin = getSupabaseAdmin()
     await ensureAppUser(supabaseAdmin, userId)
+    const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+
+    // Auto-cleanup: remove jobs older than 3 days for this user before returning latest list.
+    const { error: cleanupError } = await supabaseAdmin
+      .from("jobs")
+      .delete()
+      .eq("user_id", userId)
+      .lt("created_at", threeDaysAgoIso)
+
+    if (cleanupError) {
+      return NextResponse.json({ error: cleanupError.message }, { status: 500 })
+    }
 
     const { data, error } = await supabaseAdmin
       .from("jobs")

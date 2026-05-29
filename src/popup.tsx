@@ -2,6 +2,7 @@ import "~style.css"
 
 import { useEffect, useMemo, useState } from "react"
 
+import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision"
 import type { JobData, RuntimeMessage } from "~lib/types"
 
 type SavedJob = {
@@ -25,9 +26,26 @@ const API_BASE_URL = process.env.PLASMO_PUBLIC_API_BASE_URL || "http://127.0.0.1
 const DEMO_USER_ID =
   process.env.PLASMO_PUBLIC_DEMO_USER_ID || "00000000-0000-0000-0000-000000000001"
 
-const apiHeaders = {
-  "Content-Type": "application/json",
-  "x-user-id": DEMO_USER_ID
+const LOCAL_USER_ID_KEY = "interviewMintLocalUserId"
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const bytesToHex = (bytes: Uint8Array) => Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("")
+
+const deriveDeterministicUuid = async (seed: string): Promise<string> => {
+  const input = new TextEncoder().encode(seed)
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", input))
+  const bytes = digest.slice(0, 16)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = bytesToHex(bytes)
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+}
+
+const getApiHeaders = (userId: string) => {
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": userId
+  }
 }
 
 function IndexPopup() {
@@ -43,11 +61,63 @@ function IndexPopup() {
   const [showSavedJobs, setShowSavedJobs] = useState(false)
   const [showOptimizer, setShowOptimizer] = useState(false)
   const [resumeText, setResumeText] = useState("")
+  const [activeUserId, setActiveUserId] = useState(DEMO_USER_ID)
+  const [activeUserLabel, setActiveUserLabel] = useState("Guest user")
+
+  const apiHeaders = useMemo(() => getApiHeaders(activeUserId), [activeUserId])
 
   const shortDescription = useMemo(() => {
     if (!job?.description) return ""
     return job.description.length > 220 ? `${job.description.slice(0, 220)}...` : job.description
   }, [job])
+
+  useEffect(() => {
+    const getOrCreateLocalUserId = async (): Promise<string> => {
+      const stored = await chrome.storage.local.get([LOCAL_USER_ID_KEY])
+      const existing = String(stored?.[LOCAL_USER_ID_KEY] || "").trim()
+      if (UUID_PATTERN.test(existing)) return existing
+
+      const generated = crypto.randomUUID()
+      await chrome.storage.local.set({ [LOCAL_USER_ID_KEY]: generated })
+      return generated
+    }
+
+    const loadIdentity = async () => {
+      try {
+        const profile = await new Promise<chrome.identity.ProfileUserInfo>((resolve, reject) => {
+          chrome.identity.getProfileUserInfo((info) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message))
+              return
+            }
+            resolve(info)
+          })
+        })
+
+        const profileId = String(profile?.id || "").trim()
+        const profileEmail = String(profile?.email || "").trim()
+
+        if (profileId) {
+          const seed = profileEmail ? `email:${profileEmail}` : `profile:${profileId}`
+          const profileUuid = await deriveDeterministicUuid(seed)
+          setActiveUserId(profileUuid)
+          setActiveUserLabel(profileEmail || "Chrome user")
+          return
+        }
+      } catch {
+        // Fallback to local stable ID when Chrome profile is unavailable.
+      }
+
+      const localUserId = await getOrCreateLocalUserId()
+      setActiveUserId(localUserId)
+      setActiveUserLabel("Local profile")
+    }
+
+    loadIdentity().catch(() => {
+      setActiveUserId(DEMO_USER_ID)
+      setActiveUserLabel("Guest user")
+    })
+  }, [])
 
   useEffect(() => {
     const scrapeActiveTabDirectly = async (tabId: number): Promise<JobData | null> => {
@@ -332,61 +402,8 @@ function IndexPopup() {
   }
 
   return (
-    <div className="plasmo-relative plasmo-w-[380px] plasmo-min-h-[560px] plasmo-overflow-hidden plasmo-bg-[#050505] plasmo-text-slate-100">
-      <style>{`
-        .glass-runner-btn {
-          position: relative;
-          overflow: hidden;
-          transition: transform 220ms ease, box-shadow 220ms ease, background 220ms ease;
-        }
-
-        .glass-runner-btn::after {
-          content: "";
-          position: absolute;
-          inset: -6px;
-          border-radius: 9999px;
-          background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35), rgba(255,255,255,0.08) 45%, transparent 72%);
-          filter: blur(8px);
-          opacity: 0;
-          transition: opacity 220ms ease;
-          pointer-events: none;
-          z-index: 0;
-        }
-
-        .glass-runner-btn::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          padding: 1.2px;
-          border-radius: 9999px;
-          background: linear-gradient(110deg, rgba(255,255,255,0.2), rgba(255,255,255,0.85), rgba(255,255,255,0.2));
-          background-size: 220% 220%;
-          animation: borderFlow 2.6s linear infinite;
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          pointer-events: none;
-        }
-
-        .glass-runner-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255,255,255,0.24), inset 0 1px 0 rgba(255,255,255,0.35);
-        }
-
-        .glass-runner-btn:hover::after {
-          opacity: 0.9;
-        }
-
-        @keyframes borderFlow {
-          0% { background-position: 0% 50%; }
-          100% { background-position: 200% 50%; }
-        }
-      `}</style>
-      <div className="plasmo-pointer-events-none plasmo-absolute plasmo-inset-0 plasmo-bg-gradient-to-br plasmo-from-black/58 plasmo-via-[#1f1f1f]/44 plasmo-to-[#2c2b2b]/54" />
-      <div className="plasmo-pointer-events-none plasmo-absolute plasmo-inset-0 plasmo-bg-[linear-gradient(115deg,transparent_18%,rgba(170,176,186,0.12)_50%,transparent_82%)]" />
-      <div className="plasmo-pointer-events-none plasmo-absolute plasmo--top-24 plasmo-right-[-72px] plasmo-h-56 plasmo-w-56 plasmo-rounded-full plasmo-bg-slate-300/10 plasmo-blur-3xl" />
-      <div className="plasmo-pointer-events-none plasmo-absolute plasmo-bottom-[-90px] plasmo-left-[-70px] plasmo-h-56 plasmo-w-56 plasmo-rounded-full plasmo-bg-slate-400/10 plasmo-blur-3xl" />
+    <div className="plasmo-relative plasmo-w-[380px] plasmo-min-h-[560px] plasmo-overflow-hidden plasmo-bg-black plasmo-text-slate-100">
+      <BackgroundBeamsWithCollision className="plasmo-h-full" />
       <div className="plasmo-relative plasmo-p-4">
         <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
           <div>
@@ -396,16 +413,19 @@ function IndexPopup() {
             <h1 className="plasmo-mt-1.5 plasmo-text-[24px] plasmo-leading-[1.08] plasmo-font-semibold plasmo-text-slate-50">
               Job Optimizer
             </h1>
+            <p className="plasmo-mt-2 plasmo-inline-flex plasmo-max-w-[190px] plasmo-items-center plasmo-rounded-full plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/70 plasmo-px-2.5 plasmo-py-1 plasmo-text-[10px] plasmo-font-medium plasmo-text-slate-200">
+              {activeUserLabel}
+            </p>
           </div>
           <button
             type="button"
             onClick={openSavedJobs}
-            className="glass-runner-btn plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-white/30 plasmo-bg-[linear-gradient(140deg,rgba(140,146,156,0.3),rgba(97,104,114,0.24))] plasmo-px-5 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold plasmo-text-slate-100 plasmo-shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_18px_rgba(0,0,0,0.22)] plasmo-backdrop-blur-xl hover:plasmo-bg-[linear-gradient(140deg,rgba(162,168,178,0.36),rgba(114,122,132,0.3))]">
+            className="plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-5 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
             View Saved Jobs
           </button>
         </div>
 
-        <div className="plasmo-mt-4 plasmo-rounded-[30px] plasmo-border plasmo-border-white/28 plasmo-bg-[linear-gradient(140deg,rgba(112,118,128,0.24),rgba(50,52,58,0.2))] plasmo-p-4 plasmo-shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.2)] plasmo-backdrop-blur-2xl">
+        <div className="plasmo-mt-4 plasmo-rounded-[30px] plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
           {loadingJob && <p className="plasmo-text-sm plasmo-text-slate-400">Loading job details...</p>}
           {!loadingJob && !job && (
             <p className="plasmo-text-sm plasmo-text-slate-400">
@@ -428,14 +448,14 @@ function IndexPopup() {
             type="button"
             onClick={saveJob}
             disabled={!job || saving}
-            className="glass-runner-btn plasmo-flex-1 plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-white/32 plasmo-bg-[linear-gradient(140deg,rgba(158,164,174,0.3),rgba(98,104,114,0.24))] plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-slate-100 plasmo-shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_24px_rgba(0,0,0,0.22)] hover:plasmo-bg-[linear-gradient(140deg,rgba(176,182,192,0.36),rgba(116,122,132,0.3))] disabled:plasmo-border-white/15 disabled:plasmo-bg-slate-700/80 disabled:plasmo-text-slate-400">
+            className="plasmo-flex-1 plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-slate-500/70 plasmo-bg-slate-800/85 plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-700/90 disabled:plasmo-border-slate-700 disabled:plasmo-bg-slate-800/40 disabled:plasmo-text-slate-500">
             {saving ? "Saving..." : "Save Job"}
           </button>
           <button
             type="button"
             onClick={openOptimizer}
             disabled={!job}
-            className="glass-runner-btn plasmo-flex-1 plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-white/32 plasmo-bg-[linear-gradient(140deg,rgba(128,134,146,0.34),rgba(95,101,113,0.25))] plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-slate-100 plasmo-shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_9px_18px_rgba(0,0,0,0.2)] plasmo-backdrop-blur-xl hover:plasmo-bg-[linear-gradient(140deg,rgba(151,157,169,0.42),rgba(114,121,133,0.3))] disabled:plasmo-border-white/15 disabled:plasmo-text-slate-500">
+            className="plasmo-flex-1 plasmo-whitespace-nowrap plasmo-rounded-full plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800 disabled:plasmo-border-slate-700 disabled:plasmo-bg-slate-900/40 disabled:plasmo-text-slate-500">
             Optimize Resume
           </button>
         </div>
@@ -444,13 +464,13 @@ function IndexPopup() {
       </div>
 
       {showSavedJobs && (
-        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-10 plasmo-bg-slate-950/70 plasmo-p-5 plasmo-backdrop-blur-xl">
+        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-10 plasmo-bg-black/95 plasmo-p-5">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
             <h2 className="plasmo-text-lg plasmo-font-semibold">Saved Jobs</h2>
             <button
               type="button"
               onClick={() => setShowSavedJobs(false)}
-              className="plasmo-rounded-xl plasmo-border plasmo-border-white/25 plasmo-bg-white/10 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-backdrop-blur-md">
+              className="plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-1 plasmo-text-xs">
               Close
             </button>
           </div>
@@ -463,7 +483,7 @@ function IndexPopup() {
             {savedJobs.map((savedJob) => (
               <div
                 key={savedJob.id}
-                className="plasmo-rounded-xl plasmo-border plasmo-border-white/20 plasmo-bg-white/10 plasmo-p-4 plasmo-backdrop-blur-lg">
+                className="plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
                 <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
                   <div>
                     <p className="plasmo-text-sm plasmo-font-semibold">{savedJob.title}</p>
@@ -473,13 +493,13 @@ function IndexPopup() {
                     <button
                       type="button"
                       onClick={() => optimizeSavedJob(savedJob)}
-                      className="plasmo-rounded-lg plasmo-border plasmo-border-white/25 plasmo-bg-white/10 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 plasmo-backdrop-blur-md">
+                      className="plasmo-rounded-lg plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100">
                       Optimize
                     </button>
                     <button
                       type="button"
                       onClick={() => savedJob.source_url && chrome.tabs.create({ url: savedJob.source_url })}
-                      className="plasmo-rounded-lg plasmo-border plasmo-border-white/25 plasmo-bg-white/15 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-white/25">
+                      className="plasmo-rounded-lg plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800">
                       Apply
                     </button>
                   </div>
@@ -496,18 +516,18 @@ function IndexPopup() {
       )}
 
       {showOptimizer && (
-        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-bg-slate-950/70 plasmo-p-5 plasmo-backdrop-blur-xl">
+        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-bg-black/95 plasmo-p-5">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
             <h2 className="plasmo-text-lg plasmo-font-semibold">Resume Optimizer</h2>
             <button
               type="button"
               onClick={() => setShowOptimizer(false)}
-              className="plasmo-rounded-xl plasmo-border plasmo-border-white/25 plasmo-bg-white/10 plasmo-px-3 plasmo-py-1 plasmo-text-xs plasmo-backdrop-blur-md">
+              className="plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-1 plasmo-text-xs">
               Close
             </button>
           </div>
 
-          <div className="plasmo-mt-4 plasmo-rounded-xl plasmo-border plasmo-border-white/20 plasmo-bg-white/10 plasmo-p-4 plasmo-backdrop-blur-lg">
+          <div className="plasmo-mt-4 plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
             <p className="plasmo-text-sm plasmo-font-semibold">{job?.title}</p>
             <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-slate-300">{job?.company}</p>
           </div>
@@ -518,7 +538,7 @@ function IndexPopup() {
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none plasmo-rounded-xl plasmo-border plasmo-border-white/20 plasmo-bg-slate-900/60 plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-slate-100 plasmo-outline-none plasmo-backdrop-blur-md"
+            className="plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none plasmo-rounded-xl plasmo-border plasmo-border-slate-600 plasmo-bg-slate-900/80 plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-slate-100 plasmo-outline-none"
             placeholder="Paste your resume here..."
           />
 
@@ -526,7 +546,7 @@ function IndexPopup() {
             type="file"
             accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
             onChange={(event) => readResumeFile(event.target.files?.[0])}
-            className="plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-slate-300 file:plasmo-mr-3 file:plasmo-rounded-lg file:plasmo-border-0 file:plasmo-bg-white/20 file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-slate-100"
+            className="plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-slate-300 file:plasmo-mr-3 file:plasmo-rounded-lg file:plasmo-border-0 file:plasmo-bg-slate-700 file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-slate-100"
           />
 
           <div className="plasmo-mt-4 plasmo-flex plasmo-gap-2">
@@ -534,20 +554,20 @@ function IndexPopup() {
               type="button"
               onClick={saveResume}
               disabled={savingResume || !resumeText.trim()}
-              className="plasmo-flex-1 plasmo-rounded-xl plasmo-border plasmo-border-white/25 plasmo-bg-white/10 plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold plasmo-backdrop-blur-md disabled:plasmo-text-slate-500">
+              className="plasmo-flex-1 plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-800/80 plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-slate-500">
               {savingResume ? "Saving..." : "Save Resume"}
             </button>
             <button
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || !job || !resumeText.trim()}
-              className="plasmo-flex-1 plasmo-rounded-xl plasmo-border plasmo-border-white/28 plasmo-bg-white/15 plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-white/25 disabled:plasmo-bg-slate-700 disabled:plasmo-text-slate-400">
+              className="plasmo-flex-1 plasmo-rounded-xl plasmo-border plasmo-border-slate-500 plasmo-bg-slate-900 plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold plasmo-text-slate-100 hover:plasmo-bg-slate-800 disabled:plasmo-bg-slate-700 disabled:plasmo-text-slate-400">
               {optimizing ? "Optimizing..." : "Run ATS"}
             </button>
           </div>
 
           {result && (
-            <div className="plasmo-mt-4 plasmo-rounded-xl plasmo-border plasmo-border-white/20 plasmo-bg-white/10 plasmo-p-4 plasmo-backdrop-blur-lg">
+            <div className="plasmo-mt-4 plasmo-rounded-xl plasmo-border plasmo-border-slate-700 plasmo-bg-black/80 plasmo-p-4">
               <p className="plasmo-text-sm plasmo-font-semibold">
                 ATS Score: <span className="plasmo-text-slate-200">{result.ats_score_out_of_100}/100</span>
               </p>
