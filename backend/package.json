@@ -1,0 +1,27 @@
+{
+  "name": "interviewmint-backend",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "NODE_TLS_REJECT_UNAUTHORIZED=0 next dev",
+    "build": "next build",
+    "start": "NODE_TLS_REJECT_UNAUTHORIZED=0 next start"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.53.0",
+    "@types/pdf-parse": "^1.1.5",
+    "jspdf": "^4.2.1",
+    "next": "14.2.5",
+    "openai": "^4.104.0",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.18.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.5",
+    "@types/pdfkit": "^0.17.6",
+    "@types/react": "18.2.48",
+    "typescript": "5.3.3"
+  }
+}
