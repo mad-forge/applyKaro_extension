@@ -8,3 +8,99 @@
   all: initial;
   box-sizing: border-box;
 }
+
+#plasmo-shadow-container *,
+#plasmo-shadow-container *::before,
+#plasmo-shadow-container *::after {
+  box-sizing: border-box;
+}
+
+.ak-bg {
+  position: relative;
+  overflow: hidden;
+  background: #02070d;
+  color: #eef8ff;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.custom-rays {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.custom-rays canvas {
+  display: block;
+}
+
+.ak-card {
+  border: 1px solid rgba(105, 205, 255, 0.42);
+  background: rgba(8, 25, 48, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 22px 62px rgba(0, 0, 0, 0.5),
+    0 0 42px rgba(44, 174, 246, 0.14);
+  backdrop-filter: blur(18px);
+}
+
+.ak-card-soft {
+  border: 1px solid rgba(118, 210, 255, 0.3);
+  background: rgba(5, 14, 28, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ak-button {
+  border: 1px solid rgba(118, 216, 255, 0.46);
+  background: #0e69b8;
+  color: #f8fdff;
+  box-shadow: 0 10px 28px rgba(17, 146, 224, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  transition: transform 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.ak-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(201, 244, 255, 0.9);
+}
+
+.ak-button:active {
+  transform: translateY(0);
+}
+
+.ak-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.ak-button-secondary {
+  background: #071524;
+}
+
+.ak-input {
+  border: 1px solid rgba(126, 205, 255, 0.28);
+  background: rgba(3, 9, 18, 0.72);
+  color: #eef8ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.ak-input::placeholder {
+  color: rgba(218, 240, 255, 0.48);
+}
+
+.ak-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(160, 190, 220, 0.2);
+}
+
+.ak-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #3bd4ff;
+  box-shadow: 0 0 18px rgba(78, 207, 255, 0.75);
+}

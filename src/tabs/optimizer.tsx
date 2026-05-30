@@ -1,11 +1,28 @@
 import "~style.css"
 
+import type { ButtonHTMLAttributes, ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
-import { Button, ProgressBar } from "react95"
-import { ThemeProvider } from "styled-components"
 
-import { React95GlobalStyles, react95Theme } from "~lib/react95-theme"
+import LightRays from "~components/LightRays"
 import type { JobData } from "~lib/types"
+
+const Button = ({
+  className = "",
+  variant: _variant,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => (
+  <button className={`ak-button plasmo-rounded-md ${className}`} {...props} />
+)
+
+const ProgressBar = ({ value }: { value: number }) => (
+  <div className="ak-progress">
+    <span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+  </div>
+)
+
+const ThemeProvider = ({ children }: { children: ReactNode; theme?: unknown }) => <>{children}</>
+const PageGlobalStyles = () => null
+const pageTheme = {}
 
 type OptimizeResponse = {
   missing_keywords: string[]
@@ -316,12 +333,31 @@ function OptimizerPage() {
   }
 
   return (
-    <ThemeProvider theme={react95Theme}>
-      <React95GlobalStyles />
-      <main className="plasmo-min-h-screen plasmo-text-stone-950">
-        <div className="plasmo-relative">
+    <ThemeProvider theme={pageTheme}>
+      <PageGlobalStyles />
+      <main className="ak-bg plasmo-min-h-screen plasmo-text-stone-950">
+        <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
+          <div style={{ width: "100%", height: "760px", position: "relative" }}>
+            <LightRays
+              raysOrigin="top-center"
+              raysColor="#ffffff"
+              raysSpeed={1}
+              lightSpread={1.05}
+              rayLength={4.8}
+              followMouse={true}
+              mouseInfluence={0.1}
+              noiseAmount={0}
+              distortion={0}
+              className="custom-rays"
+              pulsating={false}
+              fadeDistance={1.2}
+              saturation={1.15}
+            />
+          </div>
+        </div>
+        <div style={{ position: "relative", zIndex: 1 }}>
       <div className="plasmo-mx-auto plasmo-grid plasmo-max-w-[1500px] plasmo-grid-cols-1 plasmo-gap-5 plasmo-p-6 lg:plasmo-grid-cols-[0.95fr_1.05fr]">
-        <section className="win95-panel plasmo-p-6">
+        <section className="ak-card-soft plasmo-rounded-lg plasmo-p-6">
           <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
             applyKaro
           </p>
@@ -361,7 +397,7 @@ function OptimizerPage() {
                 </Button>
               </div>
 
-              <div className="plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto win95-panel plasmo-p-4">
+              <div className="ak-card-soft plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto plasmo-rounded-lg plasmo-p-4">
                 <div className="plasmo-space-y-5">
                   {jobSections.map((section, index) => (
                     <section key={`${section.title}-${index}`}>
@@ -379,7 +415,7 @@ function OptimizerPage() {
           )}
         </section>
 
-        <section className="win95-panel plasmo-p-6">
+        <section className="ak-card-soft plasmo-rounded-lg plasmo-p-6">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
             <h2 className="plasmo-text-xl plasmo-font-semibold">Base resume</h2>
             <input
@@ -393,7 +429,7 @@ function OptimizerPage() {
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none win95-input plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-950 plasmo-outline-none"
+            className="ak-input plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none plasmo-rounded-lg plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-outline-none"
             placeholder={parsingResume ? "Reading PDF resume..." : "Paste your base resume here..."}
           />
 
@@ -410,13 +446,13 @@ function OptimizerPage() {
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || parsingResume || !job || !resumeText.trim()}
-              className="win95-button-blue plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-600">
+              className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold">
               {optimizing ? "Optimizing..." : "Generate ATS Resume"}
             </Button>
           </div>
 
           {optimizing && (
-            <div className="win95-panel plasmo-mt-4 plasmo-p-3">
+            <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-3">
               <p className="plasmo-mb-2 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">
                 Optimizing resume...
               </p>
@@ -428,7 +464,7 @@ function OptimizerPage() {
 
           {result && (
             <div className="plasmo-mt-5 plasmo-space-y-4">
-              <div className="win95-panel plasmo-p-4">
+              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
                 <p className="plasmo-text-base plasmo-font-semibold">
                   ATS Score: <span className="plasmo-text-stone-800">{result.ats_score_out_of_100}/100</span>
                 </p>
@@ -440,26 +476,26 @@ function OptimizerPage() {
                 </p>
               </div>
 
-              <div className="win95-panel plasmo-p-4">
+              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
                 <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Optimized resume</h3>
                   <Button
                     variant="raised"
                     type="button"
                     onClick={downloadOptimizedResume}
-                    className="win95-button-blue plasmo-relative plasmo-overflow-hidden plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold">
+                    className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold">
                     Download PDF
                   </Button>
                 </div>
                 <textarea
                   readOnly
                   value={result.optimized_resume_text || ""}
-                  className="plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none win95-input plasmo-p-3 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-950"
+                  className="ak-input plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none plasmo-rounded-lg plasmo-p-3 plasmo-text-sm plasmo-leading-6"
                 />
               </div>
 
               {result.keyword_injection_plan && (
-                <div className="win95-panel plasmo-p-4">
+                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Keyword plan</h3>
                   <ul className="plasmo-mt-3 plasmo-max-h-44 plasmo-space-y-2 plasmo-overflow-y-auto plasmo-pr-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
                     {result.keyword_injection_plan.map((item) => (
@@ -470,13 +506,13 @@ function OptimizerPage() {
               )}
 
               {result.change_log && result.change_log.length > 0 && (
-                <div className="win95-panel plasmo-p-4">
+                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Changes made</h3>
                   <div className="plasmo-mt-3 plasmo-max-h-[360px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-2">
                     {result.change_log.map((change, index) => (
                       <div
                         key={`${change.section}-${index}`}
-                        className="win95-panel plasmo-p-3">
+                        className="ak-card-soft plasmo-rounded-md plasmo-p-3">
                         <p className="plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">
                           {change.section}
                         </p>

@@ -1,10 +1,8 @@
 import "~style.css"
 
 import { useEffect, useMemo, useState } from "react"
-import { Button } from "react95"
-import { ThemeProvider } from "styled-components"
 
-import { React95GlobalStyles, react95Theme } from "~lib/react95-theme"
+import LightRays from "~components/LightRays"
 import type { JobData, RuntimeMessage } from "~lib/types"
 
 type SavedJob = {
@@ -499,47 +497,66 @@ function IndexPopup() {
   }
 
   return (
-    <ThemeProvider theme={react95Theme}>
-      <React95GlobalStyles />
-      <div className="plasmo-relative plasmo-w-[380px] plasmo-overflow-hidden plasmo-bg-[#c0c0c0] plasmo-text-stone-950">
-      <div className={showSavedJobs ? "plasmo-hidden" : "plasmo-relative plasmo-px-4 plasmo-pb-4 plasmo-pt-4"}>
+    <div className="ak-bg plasmo-relative plasmo-w-[380px] plasmo-min-h-[580px] plasmo-overflow-hidden plasmo-text-sky-50">
+      <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
+        <div style={{ width: "100%", height: "760px", position: "relative" }}>
+          <LightRays
+            raysOrigin="top-center"
+            raysColor="#ffffff"
+            raysSpeed={1}
+            lightSpread={1.05}
+            rayLength={4.8}
+            followMouse={true}
+            mouseInfluence={0.1}
+            noiseAmount={0}
+            distortion={0}
+            className="custom-rays"
+            pulsating={false}
+            fadeDistance={1.2}
+            saturation={1.15}
+          />
+        </div>
+      </div>
+      <div
+        style={{ position: "relative", zIndex: 1 }}
+        className={showSavedJobs ? "plasmo-hidden" : "plasmo-px-4 plasmo-pb-4 plasmo-pt-8"}>
         <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
           <div>
-            <p className="plasmo-text-xs plasmo-font-medium plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
+            <p className="plasmo-text-xs plasmo-font-medium plasmo-text-sky-50/90">
               applyKaro
             </p>
-            <h1 className="plasmo-mt-1.5 plasmo-text-[24px] plasmo-leading-[1.08] plasmo-font-semibold plasmo-text-stone-950">
+            <h1 className="plasmo-mt-1.5 plasmo-text-[25px] plasmo-leading-[1.08] plasmo-font-semibold plasmo-text-white">
               Career Console
             </h1>
-            <p className="plasmo-mt-2 plasmo-inline-flex plasmo-max-w-[190px] plasmo-items-center win95-inset plasmo-px-2.5 plasmo-py-1 plasmo-text-[10px] plasmo-font-medium plasmo-text-stone-800">
+            <p className="ak-card-soft plasmo-mt-2 plasmo-inline-flex plasmo-max-w-[190px] plasmo-items-center plasmo-rounded-md plasmo-px-2.5 plasmo-py-1 plasmo-text-[10px] plasmo-font-medium plasmo-text-sky-100">
               {activeUserLabel}
             </p>
           </div>
-          <Button variant="raised"
+          <button
             type="button"
             onClick={openSavedJobs}
-            className="plasmo-relative plasmo-overflow-hidden plasmo-whitespace-nowrap plasmo-px-5 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold plasmo-text-stone-950">
+            className="ak-button ak-button-secondary plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold">
             View Saved Jobs
-          </Button>
+          </button>
         </div>
 
-        <div className="plasmo-mt-4 win95-panel plasmo-p-4">
-          {loadingJob && <p className="plasmo-text-sm plasmo-text-stone-600">Loading job details...</p>}
+        <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-4">
+          {loadingJob && <p className="plasmo-text-sm plasmo-text-sky-100/70">Loading job details...</p>}
           {!loadingJob && !job && (
-            <p className="plasmo-text-sm plasmo-text-stone-600">
+            <p className="plasmo-text-sm plasmo-text-sky-100/70">
               Open a LinkedIn job page to extract title, company, and description.
             </p>
           )}
           {job && (
             <>
-              <h2 className="plasmo-text-[18px] plasmo-leading-[1.2] plasmo-font-semibold plasmo-text-stone-950">{job.title}</h2>
-              <p className="plasmo-mt-1.5 plasmo-text-[13px] plasmo-font-medium plasmo-text-stone-700">{job.company}</p>
+              <h2 className="plasmo-text-[18px] plasmo-leading-[1.2] plasmo-font-semibold plasmo-text-white">{job.title}</h2>
+              <p className="plasmo-mt-1.5 plasmo-text-[13px] plasmo-font-medium plasmo-text-sky-100/80">{job.company}</p>
               {(job.location || job.workplace) && (
-                <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-stone-700">
+                <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-sky-200/70">
                   {[job.location, job.workplace].filter(Boolean).join(" · ")}
                 </p>
               )}
-              <p className="plasmo-mt-3 plasmo-text-[12px] plasmo-leading-[1.45] plasmo-text-stone-800">
+              <p className="plasmo-mt-3 plasmo-text-[12px] plasmo-leading-[1.45] plasmo-text-sky-50/78">
                 {shortDescription}
               </p>
             </>
@@ -547,79 +564,79 @@ function IndexPopup() {
         </div>
 
         <div className="plasmo-mt-4 plasmo-flex plasmo-gap-2.5">
-          <Button variant="raised"
+          <button
             type="button"
             onClick={saveJob}
             disabled={!job || saving}
-            className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-500">
+            className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
             {saving ? "Saving..." : "Save Job"}
-          </Button>
-          <Button variant="raised"
+          </button>
+          <button
             type="button"
             onClick={openOptimizer}
             disabled={!job}
-            className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-500">
+            className="ak-button plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
             Optimize Resume
-          </Button>
+          </button>
         </div>
 
         {error && <p className="plasmo-mt-3 plasmo-text-xs plasmo-text-rose-300">{error}</p>}
       </div>
 
       {showSavedJobs && (
-        <div className="plasmo-relative plasmo-bg-[#adadad] plasmo-p-4">
-          <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
-            <h2 className="plasmo-text-[18px] plasmo-font-semibold">Saved Jobs</h2>
-            <Button variant="raised"
+        <div style={{ position: "relative", zIndex: 1 }} className="plasmo-px-4 plasmo-pb-4 plasmo-pt-8">
+          <div className="plasmo-relative plasmo-z-10 plasmo-flex plasmo-items-center plasmo-justify-between">
+            <h2 className="plasmo-text-[18px] plasmo-font-semibold plasmo-text-white">Saved Jobs</h2>
+            <button
               type="button"
               onClick={() => setShowSavedJobs(false)}
-              className="plasmo-px-3 plasmo-py-1 plasmo-text-[11px]">
+              className="ak-button ak-button-secondary plasmo-rounded-md plasmo-px-3 plasmo-py-1.5 plasmo-text-[11px] plasmo-font-semibold">
               Close
-            </Button>
+            </button>
           </div>
 
           <div className="plasmo-mt-4 plasmo-max-h-[500px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-1">
-            {loadingSavedJobs && <p className="plasmo-text-sm plasmo-text-stone-600">Loading saved jobs...</p>}
+            {loadingSavedJobs && <p className="plasmo-text-sm plasmo-text-sky-100/70">Loading saved jobs...</p>}
             {!loadingSavedJobs && savedJobs.length === 0 && (
-              <p className="plasmo-text-sm plasmo-text-stone-600">No saved jobs yet.</p>
+              <p className="plasmo-text-sm plasmo-text-sky-100/70">No saved jobs yet.</p>
             )}
             {savedJobs.map((savedJob) => (
               <div
                 key={savedJob.id}
-                className="win95-panel-dark plasmo-p-3">
+                className="ak-card-soft plasmo-rounded-lg plasmo-p-3">
                 <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-2">
                   <div className="plasmo-min-w-0 plasmo-flex-1">
-                    <p className="plasmo-text-sm plasmo-font-semibold">{savedJob.title}</p>
-                    <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-stone-700">{savedJob.company}</p>
+                    <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-white">{savedJob.title}</p>
+                    <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-sky-100/75">{savedJob.company}</p>
                     {(savedJob.location || savedJob.workplace) && (
-                      <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-stone-800">
+                      <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-sky-200/65">
                         {[savedJob.location, savedJob.workplace].filter(Boolean).join(" · ")}
                       </p>
                     )}
                   </div>
                   <div className="plasmo-flex plasmo-shrink-0 plasmo-gap-1.5">
-                    <Button variant="raised"
+                    <button
                       type="button"
                       onClick={() => optimizeSavedJob(savedJob)}
-                      className="plasmo-relative plasmo-overflow-hidden plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold plasmo-text-stone-950">
+                      className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold">
                       Optimize
-                    </Button>
-                    <Button variant="raised"
+                    </button>
+                    <button
                       type="button"
                       onClick={() => savedJob.source_url && chrome.tabs.create({ url: savedJob.source_url })}
-                      className="plasmo-relative plasmo-overflow-hidden plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold plasmo-text-stone-950">
+                      className="ak-button ak-button-secondary plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold">
                       Apply
-                    </Button>
+                    </button>
                   </div>
                 </div>
 
                 {savedJob.description && (
-                  <p className="plasmo-mt-3 plasmo-text-[11px] plasmo-leading-5 plasmo-text-stone-800">
+                  <p className="plasmo-mt-3 plasmo-text-[11px] plasmo-leading-5 plasmo-text-sky-50/72">
                     {getPreviewText(savedJob.description)}
                   </p>
                 )}
 
-                <div className="plasmo-mt-3 plasmo-border-l-2 plasmo-border-stone-600 plasmo-pl-3 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
+                <div className="plasmo-mt-3 plasmo-border-l-2 plasmo-border-cyan-300/35 plasmo-pl-3 plasmo-text-xs plasmo-leading-5 plasmo-text-sky-100/65">
                   <p>Saved {new Date(savedJob.created_at).toLocaleDateString()}</p>
                   <p>{getExpiryLabel(savedJob.created_at)}</p>
                 </div>
@@ -630,29 +647,48 @@ function IndexPopup() {
       )}
 
       {showOptimizer && (
-        <div className="plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-bg-[#c0c0c0] plasmo-p-5">
+        <div className="ak-bg plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-p-5">
+          <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
+            <div style={{ width: "100%", height: "760px", position: "relative" }}>
+              <LightRays
+                raysOrigin="top-center"
+                raysColor="#ffffff"
+                raysSpeed={1}
+                lightSpread={1.05}
+                rayLength={4.8}
+                followMouse={true}
+                mouseInfluence={0.1}
+                noiseAmount={0}
+                distortion={0}
+                className="custom-rays"
+                pulsating={false}
+                fadeDistance={1.2}
+                saturation={1.15}
+              />
+            </div>
+          </div>
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
-            <h2 className="plasmo-text-lg plasmo-font-semibold">Resume Optimizer</h2>
-            <Button variant="raised"
+            <h2 className="plasmo-text-lg plasmo-font-semibold plasmo-text-white">Resume Optimizer</h2>
+            <button
               type="button"
               onClick={() => setShowOptimizer(false)}
-              className="plasmo-px-3 plasmo-py-1 plasmo-text-xs">
+              className="ak-button ak-button-secondary plasmo-rounded-md plasmo-px-3 plasmo-py-1.5 plasmo-text-xs plasmo-font-semibold">
               Close
-            </Button>
+            </button>
           </div>
 
-          <div className="plasmo-mt-4 win95-panel plasmo-p-4">
-            <p className="plasmo-text-sm plasmo-font-semibold">{job?.title}</p>
-            <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-stone-700">{job?.company}</p>
+          <div className="ak-card-soft plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-rounded-lg plasmo-p-4">
+            <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-white">{job?.title}</p>
+            <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-sky-100/70">{job?.company}</p>
           </div>
 
-          <label className="plasmo-mt-4 plasmo-block plasmo-text-xs plasmo-font-medium plasmo-text-stone-700">
+          <label className="plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-block plasmo-text-xs plasmo-font-medium plasmo-text-sky-100/75">
             Base resume
           </label>
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none win95-input plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-stone-950 plasmo-outline-none"
+            className="ak-input plasmo-relative plasmo-z-10 plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none plasmo-rounded-lg plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-outline-none"
             placeholder="Paste your resume here..."
           />
 
@@ -660,32 +696,32 @@ function IndexPopup() {
             type="file"
             accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
             onChange={(event) => readResumeFile(event.target.files?.[0])}
-            className="plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-stone-700 file:plasmo-mr-3 file:plasmo-rounded-lg file:plasmo-border-0 file:plasmo-bg-[#A0A0A0] file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-stone-950"
+            className="plasmo-relative plasmo-z-10 plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-sky-100/75 file:plasmo-mr-3 file:plasmo-rounded-md file:plasmo-border file:plasmo-border-cyan-200/30 file:plasmo-bg-sky-500/25 file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-sky-50"
           />
 
-          <div className="plasmo-mt-4 plasmo-flex plasmo-gap-2">
-            <Button variant="raised"
+          <div className="plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-flex plasmo-gap-2">
+            <button
               type="button"
               onClick={saveResume}
               disabled={savingResume || !resumeText.trim()}
-              className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-500">
+              className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold">
               {savingResume ? "Saving..." : "Save Resume"}
-            </Button>
-            <Button variant="raised"
+            </button>
+            <button
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || !job || !resumeText.trim()}
-              className="plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-600">
+              className="ak-button plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold">
               {optimizing ? "Optimizing..." : "Run ATS"}
-            </Button>
+            </button>
           </div>
 
           {result && (
-            <div className="plasmo-mt-4 win95-panel plasmo-p-4">
-              <p className="plasmo-text-sm plasmo-font-semibold">
-                ATS Score: <span className="plasmo-text-stone-800">{result.ats_score_out_of_100}/100</span>
+            <div className="ak-card-soft plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-rounded-lg plasmo-p-4">
+              <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-white">
+                ATS Score: <span className="plasmo-text-cyan-200">{result.ats_score_out_of_100}/100</span>
               </p>
-              <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-stone-700">
+              <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-sky-100/70">
                 Missing Keywords: {result.missing_keywords.join(", ") || "None"}
               </p>
             </div>
@@ -693,7 +729,6 @@ function IndexPopup() {
         </div>
       )}
       </div>
-    </ThemeProvider>
   )
 }
 
