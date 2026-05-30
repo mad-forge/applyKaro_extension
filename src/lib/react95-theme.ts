@@ -51,6 +51,33 @@ export const React95GlobalStyles = createGlobalStyle`
     background: #c0c0c0;
   }
 
+  .win95-button-blue {
+    position: relative;
+    overflow: hidden;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #080084;
+    box-shadow: 1px 1px 0 #000000;
+    color: #111111;
+  }
+
+  .win95-button-blue:hover {
+    background: #d4d0c8;
+  }
+
+  .win95-button-blue:active {
+    border-color: #080084;
+    box-shadow: inset 1px 1px 0 #000000;
+    transform: translate(1px, 1px);
+  }
+
+  .win95-button-blue:disabled {
+    color: #808080;
+    text-shadow: 1px 1px #ffffff;
+    background: #c0c0c0;
+    border-color: #080084;
+  }
+
   .win95-input {
     background: #ffffff;
     border: 2px solid;

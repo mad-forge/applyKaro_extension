@@ -50,6 +50,9 @@ Rules:
 - First analyze the job description deeply: role mission, required technologies, must-have keywords, responsibilities, domain words, seniority signals, and soft-skill signals.
 - Then analyze the resume for evidence that can support those requirements.
 - Add the strongest supported job-description keywords naturally where the resume already supports them, especially in Skills, Summary, and Experience bullets.
+- Use exact generic keywords from the job description when they are truthful for the resume, such as coding, debugging, software development, application development, frontend, backend, testing, troubleshooting, optimization, teamwork, and communication.
+- Place keywords where they belong: technologies in Skills, role/process keywords in Summary, and responsibility keywords inside relevant Experience bullets.
+- Never add a standalone keyword-dump line such as "Role-fit keywords", "Targeted ATS Keywords", or "Target role alignment".
 - Prioritize keywords that ATS systems often rank highly: exact technology names, role title terms, responsibilities, standards, workflows, and domain phrases from the job post.
 - Reorder or tighten skills so the most job-relevant skills appear early.
 - Make experience bullets sharper and closer to the job description while preserving truth.
@@ -63,11 +66,32 @@ Rules:
 - change_log: every meaningful change you made, with before/after and why.
 - rewritten_bullet_points: 5-10 optimized bullets with quantified impact where possible.
 - Keep every claim truthful and aligned to the original resume. Do not invent employers, degrees, certifications, years of experience, or tools not supported by the base resume.
+- Never insert the target company name into Summary/Experience/Projects unless that exact company already exists in the original base resume text.
 - If a keyword is important but not supported by the resume, mention it in missing_keywords instead of fabricating it.
 - Do not include markdown, prose, or code fences.
 - Output valid parseable JSON only.`
 
 const importantTerms = [
+  "Software Development",
+  "Application Development",
+  "Programming",
+  "Coding",
+  "Debugging",
+  "Feature Enhancement",
+  "Software Testing",
+  "Troubleshooting",
+  "Optimization",
+  "Frontend Development",
+  "Backend Development",
+  "Module Development",
+  "Code Review",
+  "Documentation",
+  "Development Workflows",
+  "Technical Problem-Solving",
+  "Logic Building",
+  "Communication",
+  "Teamwork",
+  "Adaptability",
   "Java",
   "Go",
   "Kotlin",
@@ -182,6 +206,38 @@ const backendPriorityTerms = [
   "Troubleshooting"
 ]
 
+const genericJdTerms = [
+  "Software Developer",
+  "Software Developer Intern",
+  "Entry Level",
+  "Software Development",
+  "Application Development",
+  "Programming",
+  "Coding",
+  "Debugging",
+  "Feature Enhancement",
+  "Software Testing",
+  "Troubleshooting",
+  "Optimization",
+  "Frontend Development",
+  "Backend Development",
+  "Module Development",
+  "Code Review",
+  "Code Reviews",
+  "Documentation",
+  "Development Workflows",
+  "Technical Problem-Solving",
+  "Problem-Solving",
+  "Logic Building",
+  "Analytical Mindset",
+  "Technical Curiosity",
+  "Communication",
+  "Teamwork",
+  "Adaptability",
+  "Project-Based Learning",
+  "Remote"
+]
+
 const cleanKeyword = (value: string) =>
   value
     .replace(/^[•\-*]\s*/, "")
@@ -189,9 +245,23 @@ const cleanKeyword = (value: string) =>
     .replace(/\s+/g, " ")
     .trim()
 
-const extractJdKeywords = (jobDescription: string) => {
+const isLikelyCompanyKeyword = (term: string, company?: string) => {
+  const cleaned = cleanKeyword(term)
+  if (!cleaned) return true
+  if (cleaned.length < 3) return true
+  if (company && normalize(cleaned) === normalize(company)) {
+    return true
+  }
+  if (/\b(apply|hiring|stipend|certificate|benefits?|perks?|duration|virtual|remote|month|freshers?|students?)\b/i.test(cleaned)) {
+    return true
+  }
+  return false
+}
+
+const extractJdKeywords = (jobDescription: string, company?: string) => {
   const jd = jobDescription.toLowerCase()
   const exact = importantTerms.filter((term) => jd.includes(term.toLowerCase()))
+  const genericExact = genericJdTerms.filter((term) => jd.includes(term.toLowerCase()))
 
   const lines = jobDescription
     .replace(/\r/g, "")
@@ -224,10 +294,48 @@ const extractJdKeywords = (jobDescription: string) => {
     )
   )
 
-  return uniq([...priorityHits, ...exact, ...mustHaveBlock, ...normalizedPhraseMatches]).slice(0, 35)
+  return uniq([...genericExact, ...priorityHits, ...exact, ...mustHaveBlock, ...normalizedPhraseMatches])
+    .map(cleanKeyword)
+    .filter((keyword) => keyword.length >= 2 && !isLikelyCompanyKeyword(keyword, company))
+    .slice(0, 35)
 }
 
 const sectionOrder = ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "CERTIFICATIONS", "EDUCATION"]
+
+const sectionAliases: Record<string, string> = {
+  SUMMARY: "SUMMARY",
+  PROFILE: "SUMMARY",
+  "PROFESSIONAL SUMMARY": "SUMMARY",
+  "CAREER SUMMARY": "SUMMARY",
+  OBJECTIVE: "SUMMARY",
+  SKILLS: "SKILLS",
+  "TECHNICAL SKILLS": "SKILLS",
+  "CORE SKILLS": "SKILLS",
+  TECHNOLOGIES: "SKILLS",
+  EXPERIENCE: "EXPERIENCE",
+  "WORK EXPERIENCE": "EXPERIENCE",
+  "PROFESSIONAL EXPERIENCE": "EXPERIENCE",
+  EMPLOYMENT: "EXPERIENCE",
+  INTERNSHIPS: "EXPERIENCE",
+  PROJECTS: "PROJECTS",
+  "PERSONAL PROJECTS": "PROJECTS",
+  "ACADEMIC PROJECTS": "PROJECTS",
+  CERTIFICATIONS: "CERTIFICATIONS",
+  CERTIFICATES: "CERTIFICATIONS",
+  ACHIEVEMENTS: "CERTIFICATIONS",
+  EDUCATION: "EDUCATION",
+  ACADEMICS: "EDUCATION",
+  "ACADEMIC BACKGROUND": "EDUCATION"
+}
+
+const normalizeHeading = (line: string) => {
+  const cleaned = line
+    .replace(/[:\-–—]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase()
+  return sectionAliases[cleaned]
+}
 
 const splitResumeIntoSections = (text: string) => {
   const lines = text
@@ -236,14 +344,15 @@ const splitResumeIntoSections = (text: string) => {
     .map((line) => line.trim())
     .filter(Boolean)
 
-  const sections: Record<string, string[]> = {}
-  let current = "SUMMARY"
-  sections[current] = []
+  const sections: Record<string, string[]> = { HEADER: [] }
+  let current = "HEADER"
+  let foundSection = false
 
   for (const line of lines) {
-    const upper = line.toUpperCase()
-    if (sectionOrder.includes(upper)) {
-      current = upper
+    const heading = normalizeHeading(line)
+    if (heading) {
+      current = heading
+      foundSection = true
       if (!sections[current]) sections[current] = []
       continue
     }
@@ -251,34 +360,122 @@ const splitResumeIntoSections = (text: string) => {
     sections[current].push(line)
   }
 
+  if (!foundSection && sections.HEADER.length) {
+    const headerLines = sections.HEADER
+    const contentStart = Math.min(
+      headerLines.length,
+      Math.max(
+        1,
+        headerLines.findIndex((line, index) => index > 0 && !/@|linkedin|github|portfolio|phone|\+?\d[\d\s().-]{7,}/i.test(line))
+      )
+    )
+    sections.HEADER = headerLines.slice(0, contentStart)
+    sections.SUMMARY = headerLines.slice(contentStart)
+  }
+
   return sections
 }
 
-const toLatexItems = (lines: string[]) => {
-  if (!lines.length) return ""
-  const bullets = lines.filter((line) => /^[•*-]\s*/.test(line))
-  if (!bullets.length) return lines.map((line) => latexEscape(line)).join(" \\\\\n")
+const cleanResumeLine = (line: string) => line.replace(/^[•*-]\s*/, "").trim()
 
-  const normalizedBullets = bullets.map((line) => line.replace(/^[•*-]\s*/, "").trim()).filter(Boolean)
-  return `\\begin{itemize}
-${normalizedBullets.map((line) => `    \\item ${latexEscape(line)}`).join("\n")}
-\\end{itemize}`
+const toHref = (url: string) => {
+  if (/^https?:\/\//i.test(url)) return url
+  if (/^github\.com|^linkedin\.com/i.test(url)) return `https://${url}`
+  return url
+}
+
+const buildResumeHeader = (headerLines: string[]) => {
+  const fallbackName = "Your Name"
+  const name =
+    headerLines.find((line) => !/@|linkedin|github|portfolio|phone|\+?\d[\d\s().-]{7,}/i.test(line)) ||
+    fallbackName
+  const contactText = headerLines.filter((line) => line !== name).join(" | ")
+  const email = contactText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]
+  const phone = contactText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]
+  const github = contactText.match(/(?:https?:\/\/)?github\.com\/[A-Za-z0-9_.-]+/i)?.[0]
+  const linkedin = contactText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_.-]+\/?/i)?.[0]
+  const portfolio = contactText
+    .split(/[|,]/)
+    .map((part) => part.trim())
+    .find((part) => /(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}/i.test(part) && !/@|github\.com|linkedin\.com/i.test(part))
+
+  const firstLine = [
+    headerLines.find((line) => /[A-Za-z]+,\s*[A-Za-z]+/.test(line) && !/@|github|linkedin/i.test(line)),
+    phone ? `Phone: ${phone}` : "",
+    email ? `Email: \\href{mailto:${latexEscape(email)}}{\\underline{${latexEscape(email)}}}` : ""
+  ]
+    .filter(Boolean)
+    .join(" $|$ ")
+  const linkLine = [
+    github ? `GitHub: \\href{${latexEscape(toHref(github))}}{\\underline{${latexEscape(github.replace(/^https?:\/\//i, ""))}}}` : "",
+    linkedin
+      ? `LinkedIn: \\href{${latexEscape(toHref(linkedin))}}{\\underline{${latexEscape(linkedin.replace(/^https?:\/\//i, ""))}}}`
+      : "",
+    portfolio
+      ? `Portfolio: \\href{${latexEscape(toHref(portfolio))}}{\\underline{${latexEscape(portfolio.replace(/^https?:\/\//i, ""))}}}`
+      : ""
+  ]
+    .filter(Boolean)
+    .join(" $|$ ")
+
+  return `\\begin{center}
+    {\\Huge \\textbf{${latexEscape(name)}}} \\\\ \\vspace{2pt}
+    ${firstLine ? `\\small ${firstLine} \\\\ \\vspace{2pt}` : "\\small Add contact details from your resume \\\\ \\vspace{2pt}"}
+    ${linkLine || "\\textit{Add portfolio, GitHub, or LinkedIn links from your resume}"}
+\\end{center}`
+}
+
+const formatSkillLine = (line: string) => {
+  const cleaned = cleanResumeLine(line)
+  const [label, ...rest] = cleaned.split(":")
+  if (rest.length && label.length <= 32) {
+    return `\\textbf{${latexEscape(label)}:} ${latexEscape(rest.join(":").trim())} \\\\`
+  }
+  return `${latexEscape(cleaned)} \\\\`
+}
+
+const formatResumeLines = (lines: string[]) => {
+  if (!lines.length) return ""
+  const output: string[] = []
+  let bullets: string[] = []
+
+  const flushBullets = () => {
+    if (!bullets.length) return
+    output.push(`\\begin{itemize}
+${bullets.map((line) => `    \\item ${latexEscape(cleanResumeLine(line))}`).join("\n")}
+\\end{itemize}`)
+    bullets = []
+  }
+
+  for (const line of lines) {
+    if (/^[•*-]\s*/.test(line)) {
+      bullets.push(line)
+      continue
+    }
+    flushBullets()
+    output.push(`${latexEscape(line)} \\\\`)
+  }
+
+  flushBullets()
+  return output.join("\n")
 }
 
 const buildStrictLatexFromResume = (resumeText: string) => {
   const sections = splitResumeIntoSections(resumeText)
+  const header = buildResumeHeader(sections.HEADER || [])
   const summary = (sections.SUMMARY || []).map((line) => latexEscape(line)).join(" ")
   const skillsRaw = sections.SKILLS || []
   const skillsLines = skillsRaw.length
-    ? skillsRaw.map((line) => `\\textbf{Detail:} ${latexEscape(line)} \\\\`).join("\n")
+    ? skillsRaw.map(formatSkillLine).join("\n")
     : "\\textbf{Detail:} \\textit{Update from base resume.}"
 
-  const experience = toLatexItems(sections.EXPERIENCE || [])
-  const projects = toLatexItems(sections.PROJECTS || [])
-  const certs = toLatexItems(sections.CERTIFICATIONS || [])
-  const education = (sections.EDUCATION || []).map((line) => latexEscape(line)).join(" \\\\\n")
+  const experience = formatResumeLines(sections.EXPERIENCE || [])
+  const projects = formatResumeLines(sections.PROJECTS || [])
+  const certs = formatResumeLines(sections.CERTIFICATIONS || [])
+  const education = formatResumeLines(sections.EDUCATION || [])
 
   return DEFAULT_RESUME_LATEX_TEMPLATE
+    .replace(/\\begin\{center\}[\s\S]*?\\end\{center\}/, header)
     .replace(
       /\\section\{Summary\}[\s\S]*?\\section\{Skills\}/,
       `\\section{Summary}
@@ -347,6 +544,76 @@ const improveBullet = (bullet: string, supportedKeywords: string[]) => {
   return improved
 }
 
+const createTermMatcher = (term: string) => new RegExp(`(^|[^a-z0-9])${normalize(term)}([^a-z0-9]|$)`, "i")
+
+const skillKeywordPattern =
+  /\b(java|javascript|typescript|python|c\+\+|go|kotlin|react|next\.js|node\.js|redux|tailwind|html5|css3|graphql|rest|api|apis|git|docker|kubernetes|aws|frontend|backend|testing|debugging|coding|programming)\b/i
+const summaryKeywordPattern =
+  /\b(software development|application development|problem-solving|technical problem-solving|logic building|communication|teamwork|adaptability|analytical mindset|technical curiosity|development workflows|documentation)\b/i
+const bulletKeywordPattern =
+  /\b(feature enhancement|debugging|testing|troubleshooting|optimization|code review|code reviews|module development|application support|documentation)\b/i
+
+const hasKeyword = (text: string, keyword: string) => createTermMatcher(keyword).test(normalize(text))
+
+const findMissingKeywordsForText = (text: string, keywords: string[]) =>
+  keywords.filter((keyword) => !hasKeyword(text, keyword))
+
+const categorizeKeywords = (keywords: string[]) => {
+  const skillKeywords = keywords.filter((keyword) => skillKeywordPattern.test(keyword))
+  const summaryKeywords = keywords.filter((keyword) => summaryKeywordPattern.test(keyword))
+  const bulletKeywords = keywords.filter((keyword) => bulletKeywordPattern.test(keyword))
+
+  return {
+    skillKeywords,
+    summaryKeywords: summaryKeywords.length ? summaryKeywords : keywords.filter((keyword) => !skillKeywords.includes(keyword)),
+    bulletKeywords
+  }
+}
+
+const computeAtsScore = (jobDescription: string, resumeText: string, company?: string) => {
+  const jdKeywords = extractJdKeywords(jobDescription, company)
+  if (!jdKeywords.length) return 55
+
+  const normalizedResume = normalize(resumeText)
+  const lines = resumeText
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const bulletCount = lines.filter((line) => /^[•*-]\s+/.test(line)).length
+
+  const matches = jdKeywords.filter((keyword) => createTermMatcher(keyword).test(normalizedResume)).length
+  const coverage = matches / jdKeywords.length
+  const bulletStrength = Math.min(1, bulletCount / 8)
+  const structureBonus = /SUMMARY/i.test(resumeText) && /SKILLS/i.test(resumeText) ? 1 : 0
+
+  const rawScore = 38 + coverage * 48 + bulletStrength * 10 + structureBonus * 4
+  return Math.max(0, Math.min(100, Math.round(rawScore)))
+}
+
+const sanitizeOptimizedResumeText = (text: string) => {
+  return text
+    .replace(/\s*Target role alignment:[^.]*\./gi, "")
+    .split("\n")
+    .filter((line) => !/^\s*(Role-fit keywords|Targeted ATS Keywords)\s*:/i.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
+const isBadGeneratedText = (value: string) =>
+  /\b(Target role alignment|Role-fit keywords|Targeted ATS Keywords)\b/i.test(value)
+
+const sanitizeChangeLog = (
+  changeLog: Array<{ section: string; before: string; after: string; reason: string }>,
+  fallback: Array<{ section: string; before: string; after: string; reason: string }>
+) => {
+  const cleaned = changeLog.filter(
+    (item) => item.after && ![item.before, item.after, item.reason].some(isBadGeneratedText)
+  )
+  return cleaned.length ? cleaned : fallback
+}
+
 const localOptimize = ({
   job_title,
   company,
@@ -359,7 +626,7 @@ const localOptimize = ({
   base_resume: string
 }) => {
   const resumeLower = base_resume.toLowerCase()
-  const jdTerms = extractJdKeywords(job_description)
+  const jdTerms = extractJdKeywords(job_description, company)
   const resumeTokens = new Set(
     resumeLower
       .split(/[\s,;/|()]+/)
@@ -368,49 +635,75 @@ const localOptimize = ({
   )
   const supported = jdTerms.filter((term) => {
     const n = normalize(term)
-    return n && (resumeLower.includes(term.toLowerCase()) || resumeTokens.has(n))
+    return n && (resumeLower.includes(term.toLowerCase()) || resumeTokens.has(n) || genericJdTerms.some((generic) => normalize(generic) === n))
   })
   const missing = jdTerms.filter((term) => !supported.includes(term))
   const score = Math.min(
-    92,
-    Math.max(62, Math.round((supported.length / Math.max(jdTerms.length, 1)) * 45 + 48))
+    95,
+    Math.max(30, computeAtsScore(job_description, base_resume, company))
   )
 
   const lines = base_resume.replace(/\r/g, "").split("\n").map((line) => line.replace(/\s+$/g, ""))
   const summaryIndex = lines.findIndex((line) => line.trim().toUpperCase() === "SUMMARY")
   const skillsIndex = lines.findIndex((line) => line.trim().toUpperCase() === "SKILLS")
   const safeSupported = uniq(supported).slice(0, 12)
-  const rolePhrase = `${job_title || "target role"}${company ? ` at ${company}` : ""}`
+  const { skillKeywords, summaryKeywords, bulletKeywords } = categorizeKeywords(safeSupported)
+  const rolePhrase = `${job_title || "target role"}`
   const changeLog: Array<{ section: string; before: string; after: string; reason: string }> = []
 
-  if (summaryIndex >= 0 && safeSupported.length) {
+  if (summaryIndex >= 0 && summaryKeywords.length >= 2) {
     const nextContentIndex = lines.findIndex((line, index) => index > summaryIndex && line.trim())
     if (nextContentIndex > summaryIndex) {
       const before = lines[nextContentIndex]
-      const additions = safeSupported.slice(0, 4).join(", ")
-      const after = `${before.replace(/\.$/, "")}. Target role alignment: ${rolePhrase}; strengths in ${additions}.`
+      const additions = findMissingKeywordsForText(before, summaryKeywords).slice(0, 3)
+      const after = additions.length
+        ? `${before.replace(/\.$/, "")}, with hands-on exposure to ${additions.join(", ")}.`
+        : before
       lines[nextContentIndex] = after
-      changeLog.push({
-        section: "SUMMARY",
-        before,
-        after,
-        reason: "Added supported job-specific keywords to improve ATS match without changing role history."
-      })
+      if (after !== before) {
+        changeLog.push({
+          section: "SUMMARY",
+          before,
+          after,
+          reason: `Added JD keywords for ${rolePhrase} in natural summary language.`
+        })
+      }
     }
   }
 
-  if (skillsIndex >= 0 && safeSupported.length) {
-    const insertion = `Role-fit keywords: ${safeSupported.join(", ")}`
-    const alreadyHasTargeted = lines.some((line) => line.startsWith("Targeted ATS Keywords:"))
-    const alreadyHasRoleFit = lines.some((line) => line.startsWith("Role-fit keywords:"))
-    if (!alreadyHasTargeted && !alreadyHasRoleFit) {
-      lines.splice(skillsIndex + 1, 0, insertion)
-      changeLog.push({
-        section: "SKILLS",
-        before: "No targeted ATS keyword line",
-        after: insertion,
-        reason: "Placed supported job keywords near the top of Skills for parser visibility."
-      })
+  if (skillsIndex >= 0 && skillKeywords.length >= 2) {
+    const skillLineIndex = lines.findIndex((line, index) => index > skillsIndex && line.trim())
+    if (skillLineIndex > skillsIndex) {
+      const before = lines[skillLineIndex]
+      const additions = findMissingKeywordsForText(before, skillKeywords).slice(0, 6)
+      const after = additions.length ? `${before.replace(/\.$/, "")}, ${additions.join(", ")}` : before
+      lines[skillLineIndex] = after
+      if (after !== before) {
+        changeLog.push({
+          section: "SKILLS",
+          before,
+          after,
+          reason: "Placed JD technical keywords inside the existing skills line."
+        })
+      }
+    }
+  }
+
+  if (bulletKeywords.length) {
+    const bulletIndex = lines.findIndex((line) => /^[•*-]\s+/.test(line.trim()))
+    if (bulletIndex >= 0) {
+      const before = lines[bulletIndex]
+      const additions = findMissingKeywordsForText(before, bulletKeywords).slice(0, 2)
+      if (additions.length) {
+        const after = `${before.replace(/\.$/, "")}, supporting ${additions.join(" and ")}.`
+        lines[bulletIndex] = after
+        changeLog.push({
+          section: "EXPERIENCE",
+          before,
+          after,
+          reason: "Added JD responsibility keywords inside an existing work bullet."
+        })
+      }
     }
   }
 
@@ -423,7 +716,7 @@ const localOptimize = ({
   return {
     missing_keywords: uniq(missing).slice(0, 20),
     ats_score_out_of_100: score,
-    optimized_resume_text: lines.join("\n"),
+    optimized_resume_text: sanitizeOptimizedResumeText(lines.join("\n")),
     keyword_injection_plan: [
       safeSupported.length
         ? `Added supported keywords: ${safeSupported.join(", ")}`
@@ -434,22 +727,17 @@ const localOptimize = ({
     ],
     change_log: changeLog,
     rewritten_bullet_points: rewritten,
-    optimized_latex_resume: DEFAULT_RESUME_LATEX_TEMPLATE
+    optimized_latex_resume: buildStrictLatexFromResume(sanitizeOptimizedResumeText(lines.join("\n")))
   }
 }
 
 const normalizeOptimizePayload = (
   payload: any,
   fallback: ReturnType<typeof localOptimize>,
-  originalResume: string
+  originalResume: string,
+  jobDescription: string,
+  company?: string
 ) => {
-  const scoreRaw =
-    payload?.ats_score_out_of_100 ??
-    payload?.ats_score ??
-    payload?.score ??
-    payload?.atsScoreOutOf100
-  const score = Number.isFinite(Number(scoreRaw)) ? Math.max(0, Math.min(100, Number(scoreRaw))) : fallback.ats_score_out_of_100
-
   const missingKeywordsRaw =
     payload?.missing_keywords ??
     payload?.missingKeywords ??
@@ -468,6 +756,9 @@ const normalizeOptimizePayload = (
     typeof optimizedResumeRaw === "string" && optimizedResumeRaw.trim().length > 0
       ? optimizedResumeRaw
       : fallback.optimized_resume_text || originalResume
+  const sanitizedOptimizedResumeText = sanitizeOptimizedResumeText(optimizedResumeText)
+
+  const score = computeAtsScore(jobDescription, sanitizedOptimizedResumeText, company)
 
   const keywordPlanRaw = payload?.keyword_injection_plan ?? payload?.keywordPlan ?? payload?.injection_plan
   const keywordPlan = Array.isArray(keywordPlanRaw)
@@ -495,19 +786,16 @@ const normalizeOptimizePayload = (
         }))
         .filter((item: any) => item.after)
     : fallback.change_log
+  const safeChangeLog = sanitizeChangeLog(changeLog, fallback.change_log)
 
-  const latexResume = buildStrictLatexFromResume(
-    typeof payload?.optimized_resume_text === "string" && payload.optimized_resume_text.trim()
-      ? payload.optimized_resume_text
-      : originalResume
-  )
+  const latexResume = buildStrictLatexFromResume(sanitizedOptimizedResumeText)
 
   return {
     missing_keywords: missingKeywords.length ? missingKeywords : fallback.missing_keywords,
     ats_score_out_of_100: score,
-    optimized_resume_text: optimizedResumeText,
+    optimized_resume_text: sanitizedOptimizedResumeText,
     keyword_injection_plan: keywordPlan,
-    change_log: changeLog,
+    change_log: safeChangeLog,
     rewritten_bullet_points: rewritten,
     optimized_latex_resume: latexResume
   }
@@ -517,7 +805,6 @@ export async function POST(request: NextRequest) {
   try {
     const ai = getAIConfig()
     const { job_title, company, job_description, base_resume, page_count, base_latex_template } = await request.json()
-    const fallback = localOptimize({ job_title, company, job_description, base_resume })
 
     if (!job_description || !base_resume) {
       return NextResponse.json(
@@ -525,6 +812,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const fallback = localOptimize({ job_title, company, job_description, base_resume })
 
     if (!ai) {
       return NextResponse.json(fallback, {
@@ -587,7 +876,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json(normalizeOptimizePayload(parsed, fallback, base_resume))
+    return NextResponse.json(normalizeOptimizePayload(parsed, fallback, base_resume, job_description, company))
   } catch (error) {
     return NextResponse.json({ error: `optimize_failed: ${(error as Error).message}` }, { status: 500 })
   }

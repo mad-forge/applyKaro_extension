@@ -1,7 +1,7 @@
 import "~style.css"
 
 import { useEffect, useMemo, useState } from "react"
-import { Button } from "react95"
+import { Button, ProgressBar } from "react95"
 import { ThemeProvider } from "styled-components"
 
 import { React95GlobalStyles, react95Theme } from "~lib/react95-theme"
@@ -74,6 +74,8 @@ const apiHeaders = {
   "Content-Type": "application/json",
   "x-user-id": DEMO_USER_ID
 }
+
+const hasChromeExtensionApi = () => typeof chrome !== "undefined" && Boolean(chrome.storage?.local)
 
 const readJsonResponse = async (response: Response) => {
   const contentType = response.headers.get("content-type") || ""
@@ -153,6 +155,7 @@ function OptimizerPage() {
   const [parsingResume, setParsingResume] = useState(false)
   const [resumePageCount, setResumePageCount] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [optimizationProgress, setOptimizationProgress] = useState(0)
 
   const jobSections = useMemo(() => splitJobDescription(job?.description || ""), [job])
 
@@ -160,8 +163,10 @@ function OptimizerPage() {
     const load = async () => {
       setLoading(true)
 
-      const stored = await chrome.storage.local.get("interviewMintActiveJob")
-      setJob((stored.interviewMintActiveJob as JobData | undefined) || null)
+      if (hasChromeExtensionApi()) {
+        const stored = await chrome.storage.local.get("interviewMintActiveJob")
+        setJob((stored.interviewMintActiveJob as JobData | undefined) || null)
+      }
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/resume`, { headers: apiHeaders })
@@ -179,6 +184,26 @@ function OptimizerPage() {
       setError("Could not load optimizer data.")
     })
   }, [])
+
+  useEffect(() => {
+    if (!optimizing) {
+      setOptimizationProgress(0)
+      return
+    }
+
+    setOptimizationProgress(12)
+    const timer = window.setInterval(() => {
+      setOptimizationProgress((previousPercent) => {
+        if (previousPercent >= 92) return previousPercent
+        const diff = Math.random() * 11
+        return Math.min(previousPercent + diff, 92)
+      })
+    }, 450)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [optimizing])
 
   const readResumeFile = async (file: File | undefined) => {
     if (!file) return
@@ -281,6 +306,7 @@ function OptimizerPage() {
       })
       const body = await response.json()
       if (!response.ok) throw new Error(body?.error || "Failed to optimize resume")
+      setOptimizationProgress(100)
       setResult(normalizeOptimizeResult(body, resumeText))
     } catch (e) {
       setError((e as Error).message || "Failed to optimize resume.")
@@ -323,7 +349,13 @@ function OptimizerPage() {
                 </div>
                 <Button variant="raised"
                   type="button"
-                  onClick={() => chrome.tabs.create({ url: job.url })}
+                  onClick={() => {
+                    if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+                      chrome.tabs.create({ url: job.url })
+                      return
+                    }
+                    window.open(job.url, "_blank", "noopener,noreferrer")
+                  }}
                   className="plasmo-relative plasmo-overflow-hidden plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950">
                   Apply
                 </Button>
@@ -373,14 +405,24 @@ function OptimizerPage() {
               className="plasmo-relative plasmo-overflow-hidden plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-500">
               {savingResume ? "Saving..." : "Save Resume"}
             </Button>
-            <Button variant="raised"
+            <Button
+              variant="raised"
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || parsingResume || !job || !resumeText.trim()}
-              className="plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950 disabled:plasmo-text-stone-600">
+              className="win95-button-blue plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-600">
               {optimizing ? "Optimizing..." : "Generate ATS Resume"}
             </Button>
           </div>
+
+          {optimizing && (
+            <div className="win95-panel plasmo-mt-4 plasmo-p-3">
+              <p className="plasmo-mb-2 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">
+                Optimizing resume...
+              </p>
+              <ProgressBar value={Math.floor(optimizationProgress)} />
+            </div>
+          )}
 
           {error && <p className="plasmo-mt-4 plasmo-text-sm plasmo-text-rose-300">{error}</p>}
 
@@ -390,6 +432,9 @@ function OptimizerPage() {
                 <p className="plasmo-text-base plasmo-font-semibold">
                   ATS Score: <span className="plasmo-text-stone-800">{result.ats_score_out_of_100}/100</span>
                 </p>
+                <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-stone-700">
+                  Score is calculated from JD-keyword coverage and resume evidence match.
+                </p>
                 <p className="plasmo-mt-3 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
                   Missing Keywords: {result.missing_keywords?.join(", ") || "None"}
                 </p>
@@ -398,10 +443,11 @@ function OptimizerPage() {
               <div className="win95-panel plasmo-p-4">
                 <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
                   <h3 className="plasmo-text-sm plasmo-font-semibold">Optimized resume</h3>
-                  <Button variant="raised"
+                  <Button
+                    variant="raised"
                     type="button"
                     onClick={downloadOptimizedResume}
-                    className="plasmo-relative plasmo-overflow-hidden plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-950">
+                    className="win95-button-blue plasmo-relative plasmo-overflow-hidden plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold">
                     Download PDF
                   </Button>
                 </div>

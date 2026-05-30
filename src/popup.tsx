@@ -91,7 +91,7 @@ function IndexPopup() {
   const [showOptimizer, setShowOptimizer] = useState(false)
   const [resumeText, setResumeText] = useState("")
   const [activeUserId, setActiveUserId] = useState(DEMO_USER_ID)
-  const [activeUserLabel, setActiveUserLabel] = useState("Dummy user")
+  const [activeUserLabel, setActiveUserLabel] = useState("Chrome profile")
 
   const apiHeaders = useMemo(() => getApiHeaders(activeUserId), [activeUserId])
 
@@ -130,7 +130,7 @@ function IndexPopup() {
           const seed = profileEmail ? `email:${profileEmail}` : `profile:${profileId}`
           const profileUuid = await deriveDeterministicUuid(seed)
           setActiveUserId(profileUuid)
-          setActiveUserLabel("Dummy user")
+          setActiveUserLabel(profileEmail || "Chrome profile")
           return
         }
       } catch {
@@ -139,12 +139,12 @@ function IndexPopup() {
 
       const localUserId = await getOrCreateLocalUserId()
       setActiveUserId(localUserId)
-      setActiveUserLabel("Dummy user")
+      setActiveUserLabel("Local profile")
     }
 
     loadIdentity().catch(() => {
       setActiveUserId(DEMO_USER_ID)
-      setActiveUserLabel("Dummy user")
+      setActiveUserLabel("Chrome profile")
     })
   }, [])
 
