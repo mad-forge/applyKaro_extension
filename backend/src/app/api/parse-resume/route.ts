@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 
+type PdfParse = (dataBuffer: Buffer) => Promise<{ text: string; numpages: number }>
+
+const PARSE_RESUME_ROUTE_VERSION = "parse-resume-pdf-lib-path-v2"
+
+const loadPdfParser = (): PdfParse => {
+  // Keep this require inside the handler path so route startup never fails if
+  // the serverless trace is stale, while still letting Next trace the package.
+  return require("pdf-parse/lib/pdf-parse.js") as PdfParse
+}
+
 export const dynamic = "force-dynamic"
+
+export async function GET() {
+  return NextResponse.json({ ok: true, route_version: PARSE_RESUME_ROUTE_VERSION })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +28,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
 
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-      const pdfParse = eval("require")("pdf-parse") as typeof import("pdf-parse")
+      const pdfParse = loadPdfParser()
       const parsed = await pdfParse(buffer)
       const text = parsed.text.replace(/\n{3,}/g, "\n\n").trim()
 
@@ -27,6 +41,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ text: buffer.toString("utf8").trim(), page_count: null })
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: (error as Error).message,
+        route_version: PARSE_RESUME_ROUTE_VERSION
+      },
+      { status: 500 }
+    )
   }
 }

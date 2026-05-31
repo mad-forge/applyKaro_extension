@@ -579,16 +579,7 @@ function IndexPopup() {
     setShowOptimizer(true)
     setResult(null)
     setError(null)
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/resume`, { headers: apiHeaders })
-      if (response.ok) {
-        const body = await response.json()
-        setResumeText(body?.base_resume || "")
-      }
-    } catch {
-      // Empty resume is fine; user can paste/upload in the modal.
-    }
+    setResumeText("")
   }
 
   const saveResume = async () => {
@@ -637,6 +628,24 @@ function IndexPopup() {
 
   const readResumeFile = async (file: File | undefined) => {
     if (!file) return
+
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch(`${API_BASE_URL}/api/parse-resume`, {
+        method: "POST",
+        body: formData
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        setError(body?.error || "Could not read PDF resume")
+        return
+      }
+      setResumeText(body?.text || "")
+      return
+    }
+
     setResumeText(await file.text())
   }
 

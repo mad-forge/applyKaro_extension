@@ -25,12 +25,12 @@
 
 .ak-popup-bg {
   --ak-popup-ink: #02030a;
-  --ak-popup-cyan: rgba(91, 205, 244, 0.68);
-  --ak-popup-ice: rgba(225, 247, 255, 0.8);
-  --ak-popup-amber: rgba(236, 128, 42, 0.64);
-  --ak-popup-amber-soft: rgba(236, 128, 42, 0.18);
+  --ak-popup-green: rgba(96, 214, 125, 0.52);
+  --ak-popup-ice: rgba(236, 255, 244, 0.84);
+  --ak-popup-steel: rgba(182, 204, 192, 0.46);
+  --ak-popup-steel-soft: rgba(182, 204, 192, 0.16);
   background:
-    linear-gradient(145deg, rgba(1, 2, 7, 0.18), rgba(2, 4, 12, 0.04) 42%, rgba(1, 2, 8, 0.66)),
+    linear-gradient(145deg, rgba(1, 4, 2, 0.12), rgba(2, 6, 4, 0.04) 42%, rgba(1, 2, 8, 0.58)),
     url("https://res.cloudinary.com/dncvbltzo/image/upload/v1780215800/greenBg_zjxswo.jpg") center / cover no-repeat;
 }
 
@@ -41,11 +41,11 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(116, 220, 255, 0.2), transparent 23%),
-    radial-gradient(ellipse at 50% 52%, rgba(236, 128, 42, 0.12), transparent 18%),
+    radial-gradient(ellipse at 50% 48%, rgba(146, 232, 171, 0.22), transparent 23%),
+    radial-gradient(ellipse at 50% 52%, rgba(210, 230, 220, 0.11), transparent 18%),
     linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, 0.05) 42%, transparent 63%);
   filter: blur(24px);
-  opacity: 0.66;
+  opacity: 0.62;
 }
 
 .ak-popup-bg::after {
@@ -60,43 +60,47 @@
 }
 
 .ak-popup-bg .ak-card-soft {
-  border: 0;
+  border: 1.5px solid rgba(236, 252, 244, 0.44);
   border-radius: 20px;
   background:
-    linear-gradient(145deg, rgba(87, 206, 244, 0.05), rgba(5, 11, 24, 0.62) 35%, rgba(1, 2, 8, 0.78) 78%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(236, 128, 42, 0.025));
+    linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07) 38%, rgba(255, 255, 255, 0.1) 100%),
+    linear-gradient(145deg, rgba(7, 14, 12, 0.62), rgba(2, 6, 5, 0.72));
   box-shadow:
-    inset 0 -18px 38px rgba(0, 0, 0, 0.34),
-    0 18px 42px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(14px) saturate(1.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -16px 30px rgba(0, 0, 0, 0.3),
+    0 16px 38px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(10px) saturate(1.04);
 }
 
 .ak-popup-bg .ak-button {
   position: relative;
-  border: 0;
-  border-radius: 18px;
+  border: 1.5px solid rgba(238, 252, 244, 0.52);
+  border-radius: 12px;
   background:
-    radial-gradient(circle at 22% 16%, rgba(231, 248, 255, 0.3), transparent 20%),
-    radial-gradient(circle at 78% 78%, rgba(236, 128, 42, 0.24), transparent 34%),
-    linear-gradient(145deg, rgba(17, 73, 91, 0.88), rgba(5, 17, 31, 0.94) 48%, rgba(1, 2, 8, 0.98));
+    linear-gradient(165deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.14) 100%),
+    linear-gradient(145deg, rgba(11, 20, 17, 0.72), rgba(5, 10, 9, 0.76));
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.08),
-    inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 16px 30px rgba(0, 0, 0, 0.44),
-    0 0 22px rgba(91, 205, 244, 0.12);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.44),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.24),
+    0 10px 24px rgba(0, 0, 0, 0.34),
+    0 0 16px rgba(224, 255, 236, 0.14);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.32);
+  color: #f8fffb;
+  backdrop-filter: blur(7px) saturate(1.05);
 }
 
 .ak-popup-bg .ak-button-secondary {
+  border: 1.5px solid rgba(220, 239, 228, 0.46);
+  border-radius: 12px;
   background:
-    radial-gradient(circle at 24% 18%, rgba(223, 246, 255, 0.18), transparent 24%),
-    radial-gradient(circle at 83% 72%, rgba(236, 128, 42, 0.16), transparent 30%),
-    linear-gradient(145deg, rgba(9, 38, 53, 0.74), rgba(3, 9, 19, 0.88) 48%, rgba(1, 2, 8, 0.96));
+    linear-gradient(165deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08) 42%, rgba(255, 255, 255, 0.12) 100%),
+    linear-gradient(145deg, rgba(8, 16, 13, 0.68), rgba(2, 6, 5, 0.76));
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.06),
-    inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 14px 28px rgba(0, 0, 0, 0.38),
-    0 0 18px rgba(91, 205, 244, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.22),
+    0 10px 22px rgba(0, 0, 0, 0.3);
+  color: #ecfff3;
+  backdrop-filter: blur(6px) saturate(1.03);
 }
 
 .ak-popup-bg .ak-button::before,
@@ -129,30 +133,31 @@
 
 .ak-popup-bg .ak-button:hover {
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.12),
-    inset 0 -13px 24px rgba(0, 0, 0, 0.32),
-    0 18px 34px rgba(0, 0, 0, 0.46),
-    0 0 26px rgba(91, 205, 244, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.52),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.2),
+    0 12px 26px rgba(0, 0, 0, 0.36),
+    0 0 20px rgba(234, 255, 244, 0.2);
 }
 
 .ak-popup-bg .ak-input {
   border: 0;
   border-radius: 16px;
   background:
-    linear-gradient(145deg, rgba(1, 3, 10, 0.78), rgba(5, 17, 28, 0.58));
-  color: #f3fbff;
+    linear-gradient(145deg, rgba(2, 8, 6, 0.8), rgba(5, 18, 14, 0.56));
+  color: #f2fff5;
   box-shadow:
     inset 0 -10px 20px rgba(0, 0, 0, 0.32),
-    0 10px 20px rgba(0, 0, 0, 0.2);
+    inset 0 0 0 1.4px rgba(126, 224, 149, 0.36),
+    0 10px 20px rgba(0, 0, 0, 0.24);
 }
 
 .ak-popup-bg .custom-rays {
-  opacity: 0.76;
+  opacity: 0.86;
   mix-blend-mode: screen;
 }
 
 .ak-popup-bg .popup-rays {
-  filter: drop-shadow(0 0 16px rgba(151, 230, 255, 0.32));
+  filter: drop-shadow(0 0 16px rgba(156, 236, 182, 0.34));
 }
 
 .custom-rays {
@@ -255,15 +260,15 @@
 }
 
 .ak-dashboard-bg .ak-card-soft {
-  border: 2px solid rgba(126, 224, 255, 0.38);
+  border: 1.5px solid rgba(236, 252, 244, 0.42);
   background:
-    linear-gradient(145deg, rgba(2, 7, 12, 0.54), rgba(1, 4, 10, 0.62) 52%, rgba(0, 1, 5, 0.68)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(236, 128, 42, 0.018));
+    linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07) 38%, rgba(255, 255, 255, 0.1) 100%),
+    linear-gradient(145deg, rgba(7, 14, 12, 0.62), rgba(2, 6, 5, 0.72));
   box-shadow:
-    0 22px 58px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(229, 247, 255, 0.12),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.08);
-  backdrop-filter: blur(9px) saturate(1.02);
+    0 20px 48px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -14px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px) saturate(1.04);
 }
 
 .ak-dashboard-bg .ak-dashboard-panel {
@@ -313,44 +318,44 @@
 
 .ak-dashboard-bg input[type="file"]::file-selector-button {
   margin-right: 12px;
-  border: 0;
+  border: 1.5px solid rgba(238, 252, 244, 0.5);
   border-radius: 10px;
   background:
-    radial-gradient(circle at 24% 18%, rgba(231, 248, 255, 0.28), transparent 22%),
-    linear-gradient(145deg, rgba(17, 73, 91, 0.92), rgba(5, 17, 31, 0.96) 52%, rgba(1, 2, 8, 0.98));
-  color: #f5fbff;
+    linear-gradient(165deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.14) 100%),
+    linear-gradient(145deg, rgba(11, 20, 17, 0.72), rgba(5, 10, 9, 0.76));
+  color: #f7fffa;
   padding: 11px 18px;
   font-weight: 700;
   cursor: pointer;
   box-shadow:
-    inset 0 12px 26px rgba(225, 247, 255, 0.08),
-    inset 0 -12px 22px rgba(0, 0, 0, 0.34),
-    0 12px 24px rgba(0, 0, 0, 0.32),
-    0 0 18px rgba(91, 205, 244, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.44),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.24),
+    0 10px 24px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(7px) saturate(1.04);
 }
 
 .ak-dashboard-bg .ak-button {
-  border: 0;
+  border: 1.5px solid rgba(238, 252, 244, 0.52);
   border-radius: 10px;
   background:
-    radial-gradient(circle at 22% 16%, rgba(231, 248, 255, 0.3), transparent 20%),
-    radial-gradient(circle at 78% 78%, rgba(236, 128, 42, 0.2), transparent 34%),
-    linear-gradient(145deg, rgba(17, 73, 91, 0.92), rgba(5, 17, 31, 0.96) 48%, rgba(1, 2, 8, 0.98));
-  color: #f8fdff;
+    linear-gradient(165deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.14) 100%),
+    linear-gradient(145deg, rgba(11, 20, 17, 0.72), rgba(5, 10, 9, 0.76));
+  color: #f8fffb;
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.09),
-    inset 0 -13px 24px rgba(0, 0, 0, 0.36),
-    0 14px 28px rgba(0, 0, 0, 0.36),
-    0 0 20px rgba(91, 205, 244, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.44),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.24),
+    0 10px 24px rgba(0, 0, 0, 0.34),
+    0 0 16px rgba(224, 255, 236, 0.12);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(7px) saturate(1.04);
 }
 
 .ak-dashboard-bg .ak-button:hover {
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.13),
-    inset 0 -13px 24px rgba(0, 0, 0, 0.3),
-    0 18px 34px rgba(0, 0, 0, 0.42),
-    0 0 26px rgba(91, 205, 244, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.52),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.2),
+    0 12px 26px rgba(0, 0, 0, 0.36),
+    0 0 20px rgba(234, 255, 244, 0.18);
 }
 
 .ak-dashboard-bg .ak-button:disabled {

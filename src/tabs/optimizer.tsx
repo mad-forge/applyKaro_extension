@@ -250,16 +250,8 @@ function OptimizerPage() {
         const stored = await chrome.storage.local.get("interviewMintActiveJob")
         setJob((stored.interviewMintActiveJob as JobData | undefined) || null)
       }
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/resume`, { headers: apiHeaders })
-        if (response.ok) {
-          const body = await response.json()
-          setResumeText(body?.base_resume || "")
-        }
-      } finally {
-        setLoading(false)
-      }
+      setResumeText("")
+      setLoading(false)
     }
 
     load().catch(() => {
