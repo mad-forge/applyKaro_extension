@@ -457,7 +457,7 @@ function OptimizerPage() {
   return (
     <ThemeProvider theme={pageTheme}>
       <PageGlobalStyles />
-      <main className="ak-bg plasmo-min-h-screen plasmo-text-stone-950">
+      <main className="ak-bg ak-dashboard-bg plasmo-min-h-screen plasmo-text-sky-50">
         <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
           <div style={{ width: "100%", height: "760px", position: "relative" }}>
             <LightRays
