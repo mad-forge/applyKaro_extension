@@ -39,6 +39,70 @@ type OptimizeResponse = {
   rewritten_bullet_points: Array<{ original: string; optimized: string }>
 }
 
+type InterviewQuestion = {
+  question: string
+  why_asked: string
+  evaluates: string
+  talking_points: string[]
+}
+
+type CareerAnalysis = {
+  job_profile: {
+    title: string
+    company: string
+    skills: string[]
+    responsibilities: string[]
+    requirements: string[]
+    experience: string
+    technologies: string[]
+    summary: string
+  }
+  candidate_profile: {
+    skills: string[]
+    projects: string[]
+    experience: string[]
+    education: string[]
+    certifications: string[]
+    achievements: string[]
+  }
+  match_analysis: {
+    match_score: number
+    skill_match: number
+    experience_match: number
+    keyword_match: number
+    matched_skills: string[]
+    missing_skills: string[]
+    missing_keywords: string[]
+    weak_areas: string[]
+    explanation: string
+  }
+  resume_optimization: {
+    better_summary: string[]
+    better_experience_points: string[]
+    better_project_points: string[]
+    ats_keywords_suggestions: string[]
+  }
+  interview_prep: {
+    technical: InterviewQuestion[]
+    role_specific: InterviewQuestion[]
+    behavioral: InterviewQuestion[]
+  }
+  career_copilot: {
+    why_not_matching: string[]
+    hiring_manager_perspective: string[]
+    improvement_priority: {
+      high: string[]
+      medium: string[]
+      low: string[]
+    }
+  }
+  fit_prediction: {
+    label: "Strong Fit" | "Moderate Fit" | "Weak Fit"
+    reason: string[]
+    missing: string[]
+  }
+}
+
 const normalizeOptimizeResult = (body: any, resumeText: string): OptimizeResponse => {
   const scoreRaw =
     body?.ats_score_out_of_100 ??
@@ -86,6 +150,7 @@ const normalizeOptimizeResult = (body: any, resumeText: string): OptimizeRespons
 const API_BASE_URL = process.env.PLASMO_PUBLIC_API_BASE_URL || "http://127.0.0.1:3000"
 const DEMO_USER_ID =
   process.env.PLASMO_PUBLIC_DEMO_USER_ID || "00000000-0000-0000-0000-000000000001"
+const RECENT_ANALYSES_KEY = "applyKroRecentAnalyses"
 
 const apiHeaders = {
   "Content-Type": "application/json",
@@ -166,6 +231,7 @@ function OptimizerPage() {
   const [job, setJob] = useState<JobData | null>(null)
   const [resumeText, setResumeText] = useState("")
   const [result, setResult] = useState<OptimizeResponse | null>(null)
+  const [analysis, setAnalysis] = useState<CareerAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingResume, setSavingResume] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
@@ -305,10 +371,36 @@ function OptimizerPage() {
 
     setOptimizing(true)
     setResult(null)
+    setAnalysis(null)
     setError(null)
 
     try {
       await saveResume()
+
+      const analysisResponse = await fetch(`${API_BASE_URL}/api/analyze-career`, {
+        method: "POST",
+        headers: apiHeaders,
+        body: JSON.stringify({
+          job_title: job.title,
+          company: job.company,
+          job_description: job.description,
+          base_resume: resumeText
+        })
+      })
+      const analysisBody = await analysisResponse.json()
+      if (!analysisResponse.ok) throw new Error(analysisBody?.error || "Failed to analyze fit")
+      setAnalysis(analysisBody as CareerAnalysis)
+      if (hasChromeExtensionApi()) {
+        const stored = await chrome.storage.local.get(RECENT_ANALYSES_KEY)
+        const recent = ((stored[RECENT_ANALYSES_KEY] || []) as Array<{ job: JobData; analysis: CareerAnalysis; createdAt: string }>)
+          .filter((item) => item.job.url !== job.url)
+        await chrome.storage.local.set({
+          [RECENT_ANALYSES_KEY]: [
+            { job, analysis: analysisBody as CareerAnalysis, createdAt: new Date().toISOString() },
+            ...recent
+          ].slice(0, 10)
+        })
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/optimize`, {
         method: "POST",
@@ -331,6 +423,36 @@ function OptimizerPage() {
       setOptimizing(false)
     }
   }
+
+  const renderList = (items: string[] | undefined, empty = "No evidence found yet.") => (
+    <ul className="plasmo-mt-3 plasmo-space-y-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
+      {(items?.length ? items : [empty]).map((item, index) => (
+        <li key={`${item}-${index}`}>{item}</li>
+      ))}
+    </ul>
+  )
+
+  const renderQuestionList = (title: string, questions: InterviewQuestion[] = []) => (
+    <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
+      <h3 className="plasmo-text-sm plasmo-font-semibold">{title}</h3>
+      <div className="plasmo-mt-3 plasmo-space-y-3">
+        {questions.map((item, index) => (
+          <div key={`${item.question}-${index}`} className="plasmo-border-l-2 plasmo-border-stone-500/40 plasmo-pl-3">
+            <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950">{item.question}</p>
+            <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
+              Why: {item.why_asked}
+            </p>
+            <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
+              Evaluates: {item.evaluates}
+            </p>
+            <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
+              Talking points: {item.talking_points?.join(", ") || "Use concrete examples."}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <ThemeProvider theme={pageTheme}>
@@ -361,13 +483,13 @@ function OptimizerPage() {
           <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
             applyKaro
           </p>
-          <h1 className="plasmo-mt-2 plasmo-text-2xl plasmo-font-semibold">Resume Optimizer</h1>
+          <h1 className="plasmo-mt-2 plasmo-text-2xl plasmo-font-semibold">ApplyKro Dashboard</h1>
 
           {loading && <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-stone-600">Loading job...</p>}
 
           {!loading && !job && (
             <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-stone-600">
-              Open a LinkedIn job page, then click Optimize Resume from the extension popup.
+              Detect a job, paste a URL, or use Selector Mode from the extension popup.
             </p>
           )}
 
@@ -447,7 +569,7 @@ function OptimizerPage() {
               onClick={optimizeResume}
               disabled={optimizing || parsingResume || !job || !resumeText.trim()}
               className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold">
-              {optimizing ? "Optimizing..." : "Generate ATS Resume"}
+              {optimizing ? "Analyzing..." : "Analyze Fit"}
             </Button>
           </div>
 
@@ -461,6 +583,82 @@ function OptimizerPage() {
           )}
 
           {error && <p className="plasmo-mt-4 plasmo-text-sm plasmo-text-rose-300">{error}</p>}
+
+          {analysis && (
+            <div className="plasmo-mt-5 plasmo-space-y-4">
+              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
+                <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
+                  <div>
+                    <h3 className="plasmo-text-sm plasmo-font-semibold">Overview</h3>
+                    <p className="plasmo-mt-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
+                      {analysis.job_profile.summary}
+                    </p>
+                  </div>
+                  <div className="plasmo-text-right">
+                    <p className="plasmo-text-3xl plasmo-font-semibold">{analysis.match_analysis.match_score}%</p>
+                    <p className="plasmo-text-xs plasmo-text-stone-700">{analysis.fit_prediction.label}</p>
+                  </div>
+                </div>
+                <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-3 plasmo-gap-3">
+                  <div>
+                    <p className="plasmo-text-xs plasmo-text-stone-700">Skill Match</p>
+                    <ProgressBar value={analysis.match_analysis.skill_match} />
+                  </div>
+                  <div>
+                    <p className="plasmo-text-xs plasmo-text-stone-700">Experience</p>
+                    <ProgressBar value={analysis.match_analysis.experience_match} />
+                  </div>
+                  <div>
+                    <p className="plasmo-text-xs plasmo-text-stone-700">Keywords</p>
+                    <ProgressBar value={analysis.match_analysis.keyword_match} />
+                  </div>
+                </div>
+                <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
+                  {analysis.match_analysis.explanation}
+                </p>
+              </div>
+
+              <div className="plasmo-grid plasmo-grid-cols-1 plasmo-gap-4 xl:plasmo-grid-cols-2">
+                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
+                  <h3 className="plasmo-text-sm plasmo-font-semibold">Job Analysis</h3>
+                  <p className="plasmo-mt-3 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Skills</p>
+                  {renderList(analysis.job_profile.skills)}
+                  <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Technologies</p>
+                  {renderList(analysis.job_profile.technologies)}
+                </div>
+                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
+                  <h3 className="plasmo-text-sm plasmo-font-semibold">Resume Analysis</h3>
+                  <p className="plasmo-mt-3 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Candidate Skills</p>
+                  {renderList(analysis.candidate_profile.skills)}
+                  <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Achievements</p>
+                  {renderList(analysis.candidate_profile.achievements)}
+                </div>
+              </div>
+
+              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
+                <h3 className="plasmo-text-sm plasmo-font-semibold">Why You're Not Matching</h3>
+                {renderList(analysis.career_copilot.why_not_matching)}
+                <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Hiring Manager Perspective</p>
+                {renderList(analysis.career_copilot.hiring_manager_perspective)}
+              </div>
+
+              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
+                <h3 className="plasmo-text-sm plasmo-font-semibold">Optimization</h3>
+                <p className="plasmo-mt-3 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Better Summary</p>
+                {renderList(analysis.resume_optimization.better_summary)}
+                <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Better Experience Points</p>
+                {renderList(analysis.resume_optimization.better_experience_points)}
+                <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">ATS Keywords</p>
+                {renderList(analysis.resume_optimization.ats_keywords_suggestions)}
+              </div>
+
+              <div className="plasmo-grid plasmo-grid-cols-1 plasmo-gap-4 xl:plasmo-grid-cols-3">
+                {renderQuestionList("Technical", analysis.interview_prep.technical)}
+                {renderQuestionList("Role Specific", analysis.interview_prep.role_specific)}
+                {renderQuestionList("Behavioral", analysis.interview_prep.behavioral)}
+              </div>
+            </div>
+          )}
 
           {result && (
             <div className="plasmo-mt-5 plasmo-space-y-4">
