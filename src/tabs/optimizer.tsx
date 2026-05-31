@@ -147,6 +147,113 @@ const normalizeOptimizeResult = (body: any, resumeText: string): OptimizeRespons
   }
 }
 
+const toText = (value: unknown, fallback = "") =>
+  typeof value === "string" && value.trim() ? value.trim() : fallback
+
+const toList = (value: unknown, fallback: string[] = []) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean)
+  }
+
+  if (typeof value === "string" && value.trim()) return [value.trim()]
+
+  return fallback
+}
+
+const toScore = (value: unknown, fallback = 0) => {
+  const score = Number(value)
+  return Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : fallback
+}
+
+const normalizeQuestions = (value: unknown): InterviewQuestion[] => {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .filter(Boolean)
+    .map((item: any) => ({
+      question: toText(item?.question, "Tell me about a relevant project from your resume."),
+      why_asked: toText(item?.why_asked ?? item?.whyAsked, "This maps to the target role."),
+      evaluates: toText(item?.evaluates, "Role readiness and depth of experience."),
+      talking_points: toList(item?.talking_points ?? item?.talkingPoints, ["Context", "Action", "Result"])
+    }))
+}
+
+const normalizeCareerAnalysis = (body: any, job: JobData, resumeText: string): CareerAnalysis => {
+  const jobProfile = body?.job_profile ?? body?.jobProfile ?? {}
+  const candidateProfile = body?.candidate_profile ?? body?.candidateProfile ?? {}
+  const matchAnalysis = body?.match_analysis ?? body?.matchAnalysis ?? {}
+  const resumeOptimization = body?.resume_optimization ?? body?.resumeOptimization ?? {}
+  const interviewPrep = body?.interview_prep ?? body?.interviewPrep ?? {}
+  const careerCopilot = body?.career_copilot ?? body?.careerCopilot ?? {}
+  const improvementPriority = careerCopilot?.improvement_priority ?? careerCopilot?.improvementPriority ?? {}
+  const fitPrediction = body?.fit_prediction ?? body?.fitPrediction ?? {}
+
+  return {
+    job_profile: {
+      title: toText(jobProfile?.title, job.title || "Target Role"),
+      company: toText(jobProfile?.company, job.company || "Target Company"),
+      skills: toList(jobProfile?.skills),
+      responsibilities: toList(jobProfile?.responsibilities),
+      requirements: toList(jobProfile?.requirements),
+      experience: toText(jobProfile?.experience, "Experience requirements inferred from the JD."),
+      technologies: toList(jobProfile?.technologies),
+      summary: toText(jobProfile?.summary, `${job.title || "This role"} at ${job.company || "the company"}.`)
+    },
+    candidate_profile: {
+      skills: toList(candidateProfile?.skills),
+      projects: toList(candidateProfile?.projects),
+      experience: toList(candidateProfile?.experience),
+      education: toList(candidateProfile?.education),
+      certifications: toList(candidateProfile?.certifications),
+      achievements: toList(candidateProfile?.achievements)
+    },
+    match_analysis: {
+      match_score: toScore(matchAnalysis?.match_score ?? matchAnalysis?.matchScore, 65),
+      skill_match: toScore(matchAnalysis?.skill_match ?? matchAnalysis?.skillMatch, 60),
+      experience_match: toScore(matchAnalysis?.experience_match ?? matchAnalysis?.experienceMatch, 60),
+      keyword_match: toScore(matchAnalysis?.keyword_match ?? matchAnalysis?.keywordMatch, 60),
+      matched_skills: toList(matchAnalysis?.matched_skills ?? matchAnalysis?.matchedSkills),
+      missing_skills: toList(matchAnalysis?.missing_skills ?? matchAnalysis?.missingSkills),
+      missing_keywords: toList(matchAnalysis?.missing_keywords ?? matchAnalysis?.missingKeywords),
+      weak_areas: toList(matchAnalysis?.weak_areas ?? matchAnalysis?.weakAreas),
+      explanation: toText(matchAnalysis?.explanation, "Score is based on resume evidence against the job description.")
+    },
+    resume_optimization: {
+      better_summary: toList(resumeOptimization?.better_summary ?? resumeOptimization?.betterSummary),
+      better_experience_points: toList(
+        resumeOptimization?.better_experience_points ?? resumeOptimization?.betterExperiencePoints
+      ),
+      better_project_points: toList(resumeOptimization?.better_project_points ?? resumeOptimization?.betterProjectPoints),
+      ats_keywords_suggestions: toList(
+        resumeOptimization?.ats_keywords_suggestions ?? resumeOptimization?.atsKeywordsSuggestions
+      )
+    },
+    interview_prep: {
+      technical: normalizeQuestions(interviewPrep?.technical),
+      role_specific: normalizeQuestions(interviewPrep?.role_specific ?? interviewPrep?.roleSpecific),
+      behavioral: normalizeQuestions(interviewPrep?.behavioral)
+    },
+    career_copilot: {
+      why_not_matching: toList(careerCopilot?.why_not_matching ?? careerCopilot?.whyNotMatching),
+      hiring_manager_perspective: toList(
+        careerCopilot?.hiring_manager_perspective ?? careerCopilot?.hiringManagerPerspective
+      ),
+      improvement_priority: {
+        high: toList(improvementPriority?.high),
+        medium: toList(improvementPriority?.medium),
+        low: toList(improvementPriority?.low)
+      }
+    },
+    fit_prediction: {
+      label: ["Strong Fit", "Moderate Fit", "Weak Fit"].includes(fitPrediction?.label)
+        ? fitPrediction.label
+        : "Moderate Fit",
+      reason: toList(fitPrediction?.reason, ["Resume evidence partially matches this role."]),
+      missing: toList(fitPrediction?.missing)
+    }
+  }
+}
+
 const API_BASE_URL = process.env.PLASMO_PUBLIC_API_BASE_URL || "http://127.0.0.1:3000"
 const DEMO_USER_ID =
   process.env.PLASMO_PUBLIC_DEMO_USER_ID || "00000000-0000-0000-0000-000000000001"
@@ -381,14 +488,15 @@ function OptimizerPage() {
       })
       const analysisBody = await analysisResponse.json()
       if (!analysisResponse.ok) throw new Error(analysisBody?.error || "Failed to analyze fit")
-      setAnalysis(analysisBody as CareerAnalysis)
+      const normalizedAnalysis = normalizeCareerAnalysis(analysisBody, job, resumeText)
+      setAnalysis(normalizedAnalysis)
       if (hasChromeExtensionApi()) {
         const stored = await chrome.storage.local.get(RECENT_ANALYSES_KEY)
         const recent = ((stored[RECENT_ANALYSES_KEY] || []) as Array<{ job: JobData; analysis: CareerAnalysis; createdAt: string }>)
           .filter((item) => item.job.url !== job.url)
         await chrome.storage.local.set({
           [RECENT_ANALYSES_KEY]: [
-            { job, analysis: analysisBody as CareerAnalysis, createdAt: new Date().toISOString() },
+            { job, analysis: normalizedAnalysis, createdAt: new Date().toISOString() },
             ...recent
           ].slice(0, 10)
         })
