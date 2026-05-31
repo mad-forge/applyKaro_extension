@@ -1,91 +1,20 @@
-import type { JobData } from "./types"
+import {
+  createJobData,
+  first,
+  firstVisibleText,
+  formattedTextFrom,
+  inferWorkplace,
+  parseLocationAndWorkplace,
+  type JobExtractor
+} from "./extraction"
 
-const textFrom = (element: Element | null): string =>
-  (element?.textContent || "").replace(/\s+/g, " ").trim()
+export const linkedinExtractor: JobExtractor = {
+  id: "linkedin",
+  canExtract: ({ url }) => url.includes("linkedin.com/jobs"),
+  extract: ({ document: documentRef, url }) => {
+    if (!url.includes("linkedin.com/jobs")) return null
 
-const formattedTextFrom = (element: Element | null): string => {
-  if (!element) return ""
-
-  const raw =
-    element instanceof HTMLElement ? element.innerText || element.textContent || "" : element.textContent || ""
-
-  return raw
-    .replace(/\r/g, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(
-      /(About the job|What You'll Do|Key Responsibilities|What You'll Need|Technical Skills|Preferred \/ Nice To Have|Education & Experience|How We Work(?: \(core Competencies\))?|Responsibilities|Qualifications|Requirements|Minimum qualifications|Preferred qualifications|Skills)(?=\s+[A-Z(])/g,
-      "\n\n$1\n"
-    )
-    .trim()
-}
-
-const first = (selectors: string[]): Element | null => {
-  for (const selector of selectors) {
-    const match = document.querySelector(selector)
-    if (match) {
-      return match
-    }
-  }
-
-  return null
-}
-
-const visibleElements = (selectors: string[]): Element[] =>
-  selectors
-    .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-    .filter((element) => {
-      const rect = element.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
-    })
-
-const firstVisibleText = (selectors: string[]): string => {
-  for (const element of visibleElements(selectors)) {
-    const text = textFrom(element)
-    if (text) {
-      return text
-    }
-  }
-
-  return ""
-}
-
-const parseLocationAndWorkplace = (text: string) => {
-  const cleaned = text.replace(/\s+/g, " ").trim()
-  const workplaceMatch = cleaned.match(/\b(remote|hybrid|on-site|onsite)\b/i)
-  const workplace = workplaceMatch
-    ? workplaceMatch[1].replace(/^onsite$/i, "On-site").replace(/^on-site$/i, "On-site")
-    : ""
-
-  const withoutMeta = cleaned
-    .replace(/\b(remote|hybrid|on-site|onsite)\b/gi, "")
-    .replace(/\b(full-time|part-time|contract|internship|temporary|volunteer)\b/gi, "")
-    .replace(/\b\d+\s*(applicants?|reposts?)\b/gi, "")
-    .replace(/\bpromoted\b/gi, "")
-    .replace(/\s*[·|]\s*/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-
-  return {
-    location: withoutMeta,
-    workplace
-  }
-}
-
-const inferWorkplace = (text: string) => {
-  if (/\bremote\b/i.test(text)) return "Remote"
-  if (/\bhybrid\b/i.test(text)) return "Hybrid"
-  if (/\bon[-\s]?site\b/i.test(text)) return "On-site"
-  return ""
-}
-
-export const scrapeLinkedinJob = (): JobData | null => {
-  if (!window.location.href.includes("linkedin.com/jobs")) {
-    return null
-  }
-
-  const title = firstVisibleText([
+  const title = firstVisibleText(documentRef, [
     ".jobs-search__job-details--container h1",
     ".job-view-layout h1",
     ".jobs-details h1",
@@ -96,7 +25,7 @@ export const scrapeLinkedinJob = (): JobData | null => {
     "h1[data-test-id='job-details-jobs-unified-top-card__job-title']"
   ])
 
-  const company = firstVisibleText([
+  const company = firstVisibleText(documentRef, [
     ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name a",
     ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name",
     ".job-view-layout .job-details-jobs-unified-top-card__company-name a",
@@ -106,7 +35,7 @@ export const scrapeLinkedinJob = (): JobData | null => {
     "a.topcard__org-name-link"
   ])
 
-  const detailsText = firstVisibleText([
+  const detailsText = firstVisibleText(documentRef, [
     ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
     ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
     ".jobs-unified-top-card__primary-description",
@@ -118,7 +47,7 @@ export const scrapeLinkedinJob = (): JobData | null => {
   const parsedDetails = parseLocationAndWorkplace(detailsText)
 
   const descriptionContainer =
-    first([
+    first(documentRef, [
       ".jobs-search__job-details--container .jobs-description-content__text",
       ".jobs-search__job-details--container .jobs-box__html-content",
       ".jobs-search__job-details--container .jobs-description__content",
@@ -130,7 +59,7 @@ export const scrapeLinkedinJob = (): JobData | null => {
       ".jobs-details .jobs-description__content",
       "[data-test-id='job-details-description']"
     ]) ||
-    first([
+    first(documentRef, [
       ".jobs-search__job-details--container",
       ".job-view-layout",
       ".jobs-details__main-content",
@@ -140,17 +69,17 @@ export const scrapeLinkedinJob = (): JobData | null => {
   const description = formattedTextFrom(descriptionContainer)
   const workplace = parsedDetails.workplace || inferWorkplace(`${detailsText}\n${description}`)
 
-  if (!title || !company || description.length < 80) {
-    return null
-  }
-
-  return {
-    title,
-    company,
-    location: parsedDetails.location,
-    workplace,
-    description,
-    url: window.location.href,
-    scrapedAt: new Date().toISOString()
+    return createJobData({
+      title,
+      company,
+      location: parsedDetails.location,
+      workplace,
+      description,
+      url,
+      source: "linkedin",
+      extractionMethod: "linkedin"
+    })
   }
 }
+
+export const scrapeLinkedinJob = () => linkedinExtractor.extract({ document, url: window.location.href })
