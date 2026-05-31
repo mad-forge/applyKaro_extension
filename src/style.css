@@ -247,26 +247,26 @@
 .ak-dashboard-bg {
   min-height: 100vh;
   background:
-    linear-gradient(145deg, rgba(1, 2, 7, 0.48), rgba(2, 4, 12, 0.28) 42%, rgba(1, 2, 8, 0.82)),
+    linear-gradient(145deg, rgba(1, 2, 7, 0.2), rgba(2, 4, 12, 0.08) 42%, rgba(1, 2, 8, 0.48)),
     url("https://res.cloudinary.com/dncvbltzo/image/upload/v1780211704/backggg_weoee0.jpg") center / cover fixed no-repeat;
   color: #eef8ff;
 }
 
 .ak-dashboard-bg .custom-rays {
-  opacity: 0.5;
+  opacity: 0.54;
   mix-blend-mode: screen;
 }
 
 .ak-dashboard-bg .ak-card-soft {
-  border: 1px solid rgba(115, 218, 250, 0.42);
+  border: 1px solid rgba(126, 224, 255, 0.34);
   background:
-    linear-gradient(145deg, rgba(9, 24, 36, 0.9), rgba(3, 8, 18, 0.94) 52%, rgba(1, 2, 8, 0.96)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(236, 128, 42, 0.03));
+    linear-gradient(145deg, rgba(2, 7, 12, 0.54), rgba(1, 4, 10, 0.62) 52%, rgba(0, 1, 5, 0.68)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(236, 128, 42, 0.018));
   box-shadow:
-    0 26px 70px rgba(0, 0, 0, 0.52),
-    inset 0 1px 0 rgba(229, 247, 255, 0.18),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.14);
-  backdrop-filter: blur(20px) saturate(1.08);
+    0 22px 58px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(229, 247, 255, 0.12),
+    inset 0 -1px 0 rgba(236, 128, 42, 0.08);
+  backdrop-filter: blur(9px) saturate(1.02);
 }
 
 .ak-dashboard-bg h1,
@@ -275,6 +275,7 @@
 .ak-dashboard-bg .plasmo-text-stone-950,
 .ak-dashboard-bg .plasmo-text-stone-800 {
   color: #f5fbff;
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.62);
 }
 
 .ak-dashboard-bg p,
@@ -282,7 +283,8 @@
 .ak-dashboard-bg label,
 .ak-dashboard-bg .plasmo-text-stone-700,
 .ak-dashboard-bg .plasmo-text-stone-600 {
-  color: rgba(226, 239, 248, 0.9);
+  color: rgba(231, 242, 249, 0.92);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.58);
 }
 
 .ak-dashboard-bg .plasmo-tracking-widest,
@@ -292,11 +294,11 @@
 
 .ak-dashboard-bg .ak-input {
   border-color: rgba(123, 213, 245, 0.44);
-  background: rgba(1, 5, 13, 0.88);
+  background: rgba(1, 5, 13, 0.74);
   color: #eef8ff;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 14px 36px rgba(0, 0, 0, 0.32);
+    0 14px 36px rgba(0, 0, 0, 0.22);
 }
 
 .ak-dashboard-bg .ak-input::placeholder {
