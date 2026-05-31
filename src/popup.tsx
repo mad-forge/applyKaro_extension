@@ -77,6 +77,7 @@ const getPreviewText = (text: string, maxLength = 150) => {
 }
 
 const isHttpUrl = (url?: string) => Boolean(url && /^https?:\/\//i.test(url))
+const isLinkedinUrl = (url?: string) => Boolean(url && /https?:\/\/(?:www\.)?linkedin\.com\//i.test(url))
 const isLinkedinJobsUrl = (url?: string) => Boolean(url && /https?:\/\/(?:www\.)?linkedin\.com\/jobs/i.test(url))
 
 function IndexPopup() {
@@ -95,10 +96,14 @@ function IndexPopup() {
   const [jobUrl, setJobUrl] = useState("")
   const [importingUrl, setImportingUrl] = useState(false)
   const [selectorMode, setSelectorMode] = useState(false)
+  const [activeTabUrl, setActiveTabUrl] = useState("")
   const [activeUserId, setActiveUserId] = useState(DEMO_USER_ID)
   const [activeUserLabel, setActiveUserLabel] = useState("Chrome profile")
 
   const apiHeaders = useMemo(() => getApiHeaders(activeUserId), [activeUserId])
+  const isLinkedinPage = isLinkedinUrl(activeTabUrl)
+  const isLinkedinJobPage = isLinkedinJobsUrl(activeTabUrl)
+  const showUniversalTools = isHttpUrl(activeTabUrl) && !isLinkedinPage
 
   const shortDescription = useMemo(() => {
     if (!job?.description) return ""
@@ -361,8 +366,9 @@ function IndexPopup() {
 
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
       const activeUrl = activeTab?.url || ""
+      setActiveTabUrl(activeUrl)
 
-      if (isHttpUrl(activeUrl)) {
+      if (isHttpUrl(activeUrl) && !isLinkedinUrl(activeUrl)) {
         setJobUrl(activeUrl)
       }
 
@@ -384,6 +390,8 @@ function IndexPopup() {
       try {
         if (isLinkedinJobsUrl(activeUrl)) {
           await loadLinkedinJob(activeTab.id)
+        } else if (isLinkedinUrl(activeUrl)) {
+          setJob(null)
         } else {
           await loadNonLinkedinJob(activeUrl)
         }
@@ -508,13 +516,15 @@ function IndexPopup() {
     try {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
       const activeUrl = activeTab?.url || ""
+      setActiveTabUrl(activeUrl)
       if (!activeTab?.id || !isHttpUrl(activeUrl)) throw new Error("Open a job page first.")
-
-      setJobUrl(activeUrl)
 
       if (isLinkedinJobsUrl(activeUrl)) {
         await loadLinkedinJob(activeTab.id)
+      } else if (isLinkedinUrl(activeUrl)) {
+        throw new Error("Open a LinkedIn job page to auto extract the job description.")
       } else {
+        setJobUrl(activeUrl)
         await loadNonLinkedinJob(activeUrl)
       }
     } catch (e) {
@@ -631,7 +641,7 @@ function IndexPopup() {
   }
 
   return (
-    <div className="ak-bg plasmo-relative plasmo-w-[380px] plasmo-min-h-[580px] plasmo-overflow-hidden plasmo-text-sky-50">
+    <div className="ak-bg ak-popup-bg plasmo-relative plasmo-w-[380px] plasmo-min-h-[580px] plasmo-overflow-hidden plasmo-text-sky-50">
       <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
         <div style={{ width: "100%", height: "760px", position: "relative" }}>
           <LightRays
@@ -678,7 +688,9 @@ function IndexPopup() {
           {loadingJob && <p className="plasmo-text-sm plasmo-text-sky-100/70">Loading job details...</p>}
           {!loadingJob && !job && (
             <p className="plasmo-text-sm plasmo-text-sky-100/70">
-              Detect an open job page, paste a job URL, or use Selector Mode on unsupported websites.
+              {isLinkedinPage
+                ? "Open a LinkedIn job page to auto fetch title, company, and job description."
+                : "For non-LinkedIn job sites, paste a job URL or use Selector Mode."}
             </p>
           )}
           {job && (
@@ -697,49 +709,56 @@ function IndexPopup() {
           )}
         </div>
 
-        <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-3">
-          <label className="plasmo-block plasmo-text-[11px] plasmo-font-semibold plasmo-text-sky-100/75">
-            Paste Job URL
-          </label>
-          <div className="plasmo-mt-2 plasmo-flex plasmo-gap-2">
-            <input
-              type="url"
-              value={jobUrl}
-              onChange={(event) => setJobUrl(event.target.value)}
-              placeholder="https://company.com/jobs/role"
-              className="ak-input plasmo-min-w-0 plasmo-flex-1 plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-xs plasmo-outline-none"
-            />
+        {showUniversalTools && (
+          <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-3">
+            <label className="plasmo-block plasmo-text-[11px] plasmo-font-semibold plasmo-text-sky-100/75">
+              Paste Job URL
+            </label>
+            <div className="plasmo-mt-2 plasmo-flex plasmo-gap-2">
+              <input
+                type="url"
+                value={jobUrl}
+                onChange={(event) => setJobUrl(event.target.value)}
+                placeholder="https://company.com/jobs/role"
+                className="ak-input plasmo-min-w-0 plasmo-flex-1 plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-xs plasmo-outline-none"
+              />
+              <button
+                type="button"
+                onClick={importJobUrl}
+                disabled={importingUrl}
+                className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold">
+                {importingUrl ? "Fetch..." : "Fetch"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showUniversalTools && (
+          <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-2 plasmo-gap-2.5">
             <button
               type="button"
-              onClick={importJobUrl}
-              disabled={importingUrl}
-              className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold">
-              {importingUrl ? "Fetch..." : "Fetch"}
+              onClick={detectActiveJob}
+              disabled={loadingJob}
+              className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
+              {loadingJob ? "Detecting..." : "Detect Job"}
+            </button>
+            <button
+              type="button"
+              onClick={startSelectorMode}
+              disabled={selectorMode}
+              className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
+              {selectorMode ? "Selecting..." : "Selector Mode"}
             </button>
           </div>
-        </div>
+        )}
 
         <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-2 plasmo-gap-2.5">
-          <button
-            type="button"
-            onClick={detectActiveJob}
-            disabled={loadingJob}
-            className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            {loadingJob ? "Detecting..." : "Detect Job"}
-          </button>
-          <button
-            type="button"
-            onClick={startSelectorMode}
-            disabled={selectorMode}
-            className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            {selectorMode ? "Selecting..." : "Selector Mode"}
-          </button>
           <button
             type="button"
             onClick={saveJob}
             disabled={!job || saving}
             className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            {saving ? "Analyzing..." : "Analyze"}
+            {saving ? "Saving..." : isLinkedinPage ? "Save Job" : "Analyze"}
           </button>
           <button
             type="button"
@@ -817,7 +836,7 @@ function IndexPopup() {
       )}
 
       {showOptimizer && (
-        <div className="ak-bg plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-p-5">
+        <div className="ak-bg ak-popup-bg plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-p-5">
           <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
             <div style={{ width: "100%", height: "760px", position: "relative" }}>
               <LightRays
