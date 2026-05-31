@@ -60,50 +60,50 @@
 }
 
 .ak-popup-bg .ak-card-soft {
-  border: 1px solid rgba(103, 214, 246, 0.34);
+  border: 0;
   border-radius: 20px;
   background:
-    linear-gradient(145deg, rgba(87, 206, 244, 0.1), rgba(5, 11, 24, 0.68) 35%, rgba(1, 2, 8, 0.82) 78%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(236, 128, 42, 0.05));
+    linear-gradient(145deg, rgba(87, 206, 244, 0.08), rgba(5, 11, 24, 0.6) 35%, rgba(1, 2, 8, 0.76) 78%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(236, 128, 42, 0.045));
   box-shadow:
-    inset 0 1px 0 rgba(225, 247, 255, 0.28),
-    inset 0 -1px 0 var(--ak-popup-amber-soft),
+    inset 0 0 0 1px rgba(225, 247, 255, 0.12),
+    inset 0 1px 0 rgba(225, 247, 255, 0.22),
+    inset 0 -1px 0 rgba(236, 128, 42, 0.14),
     inset 0 -18px 38px rgba(0, 0, 0, 0.34),
-    0 20px 48px rgba(0, 0, 0, 0.46),
-    0 0 0 1px rgba(236, 128, 42, 0.08),
-    0 0 30px rgba(91, 205, 244, 0.09);
-  backdrop-filter: blur(18px) saturate(1.16);
+    0 18px 42px rgba(0, 0, 0, 0.42),
+    0 0 24px rgba(91, 205, 244, 0.06);
+  backdrop-filter: blur(14px) saturate(1.08);
 }
 
 .ak-popup-bg .ak-button {
   position: relative;
-  border: 1px solid rgba(92, 210, 246, 0.52);
+  border: 0;
   border-radius: 18px;
   background:
-    radial-gradient(circle at 22% 16%, rgba(231, 248, 255, 0.34), transparent 20%),
-    radial-gradient(circle at 75% 78%, rgba(236, 128, 42, 0.2), transparent 34%),
-    linear-gradient(145deg, rgba(13, 48, 64, 0.92), rgba(4, 12, 24, 0.96) 48%, rgba(1, 2, 8, 0.98));
+    radial-gradient(circle at 22% 16%, rgba(231, 248, 255, 0.24), transparent 20%),
+    radial-gradient(circle at 78% 78%, rgba(236, 128, 42, 0.2), transparent 34%),
+    linear-gradient(145deg, rgba(14, 54, 68, 0.78), rgba(4, 12, 24, 0.88) 48%, rgba(1, 2, 8, 0.94));
   box-shadow:
-    inset 0 1px 0 rgba(225, 247, 255, 0.48),
+    inset 0 0 0 1px rgba(91, 205, 244, 0.24),
+    inset 0 1px 0 rgba(225, 247, 255, 0.38),
     inset 0 -1px 0 rgba(236, 128, 42, 0.28),
     inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 13px 28px rgba(0, 0, 0, 0.4),
-    0 0 18px rgba(91, 205, 244, 0.16);
+    0 12px 24px rgba(0, 0, 0, 0.34),
+    0 0 14px rgba(91, 205, 244, 0.1);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.34);
 }
 
 .ak-popup-bg .ak-button-secondary {
-  border-color: rgba(88, 194, 228, 0.44);
   background:
-    radial-gradient(circle at 24% 18%, rgba(223, 246, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 24% 18%, rgba(223, 246, 255, 0.14), transparent 24%),
     radial-gradient(circle at 83% 72%, rgba(236, 128, 42, 0.12), transparent 30%),
-    linear-gradient(145deg, rgba(8, 31, 45, 0.7), rgba(3, 9, 19, 0.88) 48%, rgba(1, 2, 8, 0.98));
+    linear-gradient(145deg, rgba(8, 31, 45, 0.54), rgba(3, 9, 19, 0.78) 48%, rgba(1, 2, 8, 0.92));
   box-shadow:
-    inset 0 1px 0 rgba(225, 247, 255, 0.34),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.2),
+    inset 0 0 0 1px rgba(91, 205, 244, 0.2),
+    inset 0 1px 0 rgba(225, 247, 255, 0.24),
+    inset 0 -1px 0 rgba(236, 128, 42, 0.16),
     inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 12px 26px rgba(0, 0, 0, 0.34),
-    0 0 16px rgba(91, 205, 244, 0.1);
+    0 11px 23px rgba(0, 0, 0, 0.3);
 }
 
 .ak-popup-bg .ak-button::before,
@@ -135,26 +135,27 @@
 }
 
 .ak-popup-bg .ak-button:hover {
-  border-color: rgba(143, 228, 252, 0.82);
   box-shadow:
-    inset 0 1px 0 rgba(225, 247, 255, 0.64),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.38),
+    inset 0 0 0 1px rgba(143, 228, 252, 0.42),
+    inset 0 1px 0 rgba(225, 247, 255, 0.5),
+    inset 0 -1px 0 rgba(236, 128, 42, 0.32),
     inset 0 -13px 24px rgba(0, 0, 0, 0.32),
-    0 16px 32px rgba(0, 0, 0, 0.44),
-    0 0 24px rgba(91, 205, 244, 0.22),
-    0 0 16px rgba(236, 128, 42, 0.12);
+    0 14px 28px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(91, 205, 244, 0.14);
 }
 
 .ak-popup-bg .ak-input {
-  border-color: rgba(88, 194, 228, 0.42);
+  border-color: rgba(88, 194, 228, 0.22);
   border-radius: 16px;
   background:
-    linear-gradient(145deg, rgba(1, 3, 10, 0.72), rgba(5, 17, 28, 0.66));
+    linear-gradient(145deg, rgba(1, 3, 10, 0.78), rgba(5, 17, 28, 0.58));
+  color: #f3fbff;
   box-shadow:
-    inset 0 1px 0 rgba(225, 247, 255, 0.16),
+    inset 0 0 0 1px rgba(225, 247, 255, 0.08),
+    inset 0 1px 0 rgba(225, 247, 255, 0.12),
     inset 0 -1px 0 rgba(236, 128, 42, 0.16),
     inset 0 -10px 20px rgba(0, 0, 0, 0.32),
-    0 12px 24px rgba(0, 0, 0, 0.24);
+    0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
 .ak-popup-bg .custom-rays {
