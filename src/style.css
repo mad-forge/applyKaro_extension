@@ -258,7 +258,7 @@
 }
 
 .ak-dashboard-bg .ak-card-soft {
-  border: 1px solid rgba(126, 224, 255, 0.34);
+  border: 2px solid rgba(126, 224, 255, 0.38);
   background:
     linear-gradient(145deg, rgba(2, 7, 12, 0.54), rgba(1, 4, 10, 0.62) 52%, rgba(0, 1, 5, 0.68)),
     linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(236, 128, 42, 0.018));
@@ -267,6 +267,11 @@
     inset 0 1px 0 rgba(229, 247, 255, 0.12),
     inset 0 -1px 0 rgba(236, 128, 42, 0.08);
   backdrop-filter: blur(9px) saturate(1.02);
+}
+
+.ak-dashboard-bg .ak-dashboard-panel {
+  border: 0;
+  box-shadow: none;
 }
 
 .ak-dashboard-bg h1,

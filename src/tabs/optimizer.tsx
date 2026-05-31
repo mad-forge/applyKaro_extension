@@ -479,7 +479,7 @@ function OptimizerPage() {
         </div>
         <div style={{ position: "relative", zIndex: 1 }}>
       <div className="plasmo-mx-auto plasmo-grid plasmo-max-w-[1500px] plasmo-grid-cols-1 plasmo-gap-5 plasmo-p-6 lg:plasmo-grid-cols-[0.95fr_1.05fr]">
-        <section className="ak-card-soft plasmo-rounded-lg plasmo-p-6">
+        <section className="ak-card-soft ak-dashboard-panel plasmo-rounded-lg plasmo-p-6">
           <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
             applyKaro
           </p>
@@ -537,7 +537,7 @@ function OptimizerPage() {
           )}
         </section>
 
-        <section className="ak-card-soft plasmo-rounded-lg plasmo-p-6">
+        <section className="ak-card-soft ak-dashboard-panel plasmo-rounded-lg plasmo-p-6">
           <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
             <h2 className="plasmo-text-xl plasmo-font-semibold">Base resume</h2>
             <input
