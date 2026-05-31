@@ -1,4 +1,4 @@
-import { extractJob, extractSelectedJob, genericExtractor } from "~lib/extraction"
+import { extractJob, extractSelectedJob } from "~lib/extraction"
 import { linkedinExtractor } from "~lib/linkedin"
 import type { RuntimeMessage } from "~lib/types"
 
@@ -12,7 +12,7 @@ let selectorCleanup: (() => void) | null = null
 const publishJobData = () => {
   const payload = extractJob(
     { document, url: window.location.href, source: "active-tab" },
-    [linkedinExtractor, genericExtractor]
+    [linkedinExtractor]
   )
 
   if (!payload) {

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 
 import LightRays from "~components/LightRays"
 import { extractJob, genericExtractor } from "~lib/extraction"
-import { linkedinExtractor } from "~lib/linkedin"
 import type { JobData, RuntimeMessage } from "~lib/types"
 
 type SavedJob = {
@@ -76,6 +75,9 @@ const getPreviewText = (text: string, maxLength = 150) => {
   const cleaned = text.replace(/\s+/g, " ").trim()
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength).trim()}...` : cleaned
 }
+
+const isHttpUrl = (url?: string) => Boolean(url && /^https?:\/\//i.test(url))
+const isLinkedinJobsUrl = (url?: string) => Boolean(url && /https?:\/\/(?:www\.)?linkedin\.com\/jobs/i.test(url))
 
 function IndexPopup() {
   const [job, setJob] = useState<JobData | null>(null)
@@ -151,30 +153,242 @@ function IndexPopup() {
     })
   }, [])
 
+  const scrapeLinkedinTabDirectly = async (tabId: number): Promise<JobData | null> => {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const textFrom = (element: Element | null): string =>
+          (element?.textContent || "").replace(/\s+/g, " ").trim()
+
+        const formattedTextFrom = (element: Element | null): string => {
+          if (!element) return ""
+          const raw =
+            element instanceof HTMLElement
+              ? element.innerText || element.textContent || ""
+              : element.textContent || ""
+
+          return raw
+            .replace(/\r/g, "")
+            .replace(/[ \t]+\n/g, "\n")
+            .replace(/\n[ \t]+/g, "\n")
+            .replace(/\n{3,}/g, "\n\n")
+            .replace(
+              /(About the job|What You'll Do|Key Responsibilities|What You'll Need|Technical Skills|Preferred \/ Nice To Have|Education & Experience|How We Work(?: \(core Competencies\))?|Responsibilities|Qualifications|Requirements|Minimum qualifications|Preferred qualifications|Skills)(?=\s+[A-Z(])/g,
+              "\n\n$1\n"
+            )
+            .trim()
+        }
+
+        const first = (selectors: string[]): Element | null => {
+          for (const selector of selectors) {
+            const match = document.querySelector(selector)
+            if (match) return match
+          }
+          return null
+        }
+
+        const visibleText = (selectors: string[]): string => {
+          for (const selector of selectors) {
+            for (const element of Array.from(document.querySelectorAll(selector))) {
+              const rect = element.getBoundingClientRect()
+              const text = textFrom(element)
+              if (rect.width > 0 && rect.height > 0 && text) return text
+            }
+          }
+          return ""
+        }
+
+        const parseLocationAndWorkplace = (text: string) => {
+          const cleaned = text.replace(/\s+/g, " ").trim()
+          const workplaceMatch = cleaned.match(/\b(remote|hybrid|on-site|onsite)\b/i)
+          const workplace = workplaceMatch
+            ? workplaceMatch[1].replace(/^onsite$/i, "On-site").replace(/^on-site$/i, "On-site")
+            : ""
+
+          const location = cleaned
+            .replace(/\b(remote|hybrid|on-site|onsite)\b/gi, "")
+            .replace(/\b(full-time|part-time|contract|internship|temporary|volunteer)\b/gi, "")
+            .replace(/\b\d+\s*(applicants?|reposts?)\b/gi, "")
+            .replace(/\bpromoted\b/gi, "")
+            .replace(/\s*[·|]\s*/g, " ")
+            .replace(/\s{2,}/g, " ")
+            .trim()
+
+          return { location, workplace }
+        }
+
+        const inferWorkplace = (text: string) => {
+          if (/\bremote\b/i.test(text)) return "Remote"
+          if (/\bhybrid\b/i.test(text)) return "Hybrid"
+          if (/\bon[-\s]?site\b/i.test(text)) return "On-site"
+          return ""
+        }
+
+        if (!window.location.href.includes("linkedin.com/jobs")) return null
+
+        const title = visibleText([
+          ".jobs-search__job-details--container h1",
+          ".job-view-layout h1",
+          ".jobs-details h1",
+          ".jobs-unified-top-card h1",
+          ".jobs-details__main-content h1",
+          "h1.t-24.t-bold.inline",
+          "h1.job-details-jobs-unified-top-card__job-title",
+          "h1[data-test-id='job-details-jobs-unified-top-card__job-title']"
+        ])
+
+        const company = visibleText([
+          ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name a",
+          ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name",
+          ".job-view-layout .job-details-jobs-unified-top-card__company-name a",
+          ".job-view-layout .job-details-jobs-unified-top-card__company-name",
+          ".jobs-unified-top-card__company-name a",
+          ".jobs-unified-top-card__company-name",
+          "a.topcard__org-name-link"
+        ])
+
+        const detailsText = visibleText([
+          ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
+          ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
+          ".jobs-unified-top-card__primary-description",
+          ".jobs-unified-top-card__bullet",
+          ".job-details-jobs-unified-top-card__tertiary-description-container",
+          ".topcard__flavor-row"
+        ])
+
+        const descriptionContainer =
+          first([
+            ".jobs-search__job-details--container .jobs-description-content__text",
+            ".jobs-search__job-details--container .jobs-box__html-content",
+            ".jobs-search__job-details--container .jobs-description__content",
+            ".job-view-layout .jobs-description-content__text",
+            ".job-view-layout .jobs-box__html-content",
+            ".job-view-layout .jobs-description__content",
+            ".jobs-details .jobs-description-content__text",
+            ".jobs-details .jobs-box__html-content",
+            ".jobs-details .jobs-description__content",
+            "[data-test-id='job-details-description']"
+          ]) ||
+          first([
+            ".jobs-search__job-details--container",
+            ".job-view-layout",
+            ".jobs-details__main-content",
+            ".jobs-details"
+          ])
+
+        const description = formattedTextFrom(descriptionContainer)
+        const parsedDetails = parseLocationAndWorkplace(detailsText)
+        const workplace = parsedDetails.workplace || inferWorkplace(`${detailsText}\n${description}`)
+        if (!title || !company || description.length < 80) return null
+
+        return {
+          title,
+          company,
+          location: parsedDetails.location,
+          workplace,
+          description,
+          url: window.location.href,
+          source: "linkedin",
+          extractionMethod: "linkedin",
+          scrapedAt: new Date().toISOString()
+        }
+      }
+    })
+
+    return (injection?.result as JobData | null) || null
+  }
+
+  const normalizeJobUrl = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) throw new Error("Paste a job URL first.")
+    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only HTTP or HTTPS job URLs are supported.")
+    return url.toString()
+  }
+
+  const fetchJobFromUrl = async (value: string) => {
+    const normalizedUrl = normalizeJobUrl(value)
+    const response = await fetch(normalizedUrl, { credentials: "omit" })
+    if (!response.ok) throw new Error(`Could not fetch this URL (${response.status}).`)
+
+    const html = await response.text()
+    const documentRef = new DOMParser().parseFromString(html, "text/html")
+    const importedJob = extractJob(
+      { document: documentRef, url: normalizedUrl, source: "url-import" },
+      [genericExtractor]
+    )
+
+    if (!importedJob) {
+      throw new Error("Fetched the page, but could not find a job description. Try Selector Mode.")
+    }
+
+    return importedJob
+  }
+
+  const publishImportedJob = async (importedJob: JobData) => {
+    setJob(importedJob)
+    await chrome.runtime.sendMessage({ type: "JOB_DATA_UPDATED", payload: importedJob } as RuntimeMessage)
+  }
+
+  const loadLinkedinJob = async (tabId: number) => {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "SCRAPE_JOB_PAGE" } as RuntimeMessage)
+      return
+    } catch {
+      const fallbackJob = await scrapeLinkedinTabDirectly(tabId)
+      if (fallbackJob) {
+        await publishImportedJob(fallbackJob)
+        return
+      }
+      throw new Error("Could not load LinkedIn job details.")
+    }
+  }
+
+  const loadNonLinkedinJob = async (url: string) => {
+    setImportingUrl(true)
+    try {
+      const importedJob = await fetchJobFromUrl(url)
+      await publishImportedJob(importedJob)
+    } finally {
+      setImportingUrl(false)
+    }
+  }
+
   useEffect(() => {
     const load = async () => {
       setLoadingJob(true)
       setError(null)
 
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const activeUrl = activeTab?.url || ""
+
+      if (isHttpUrl(activeUrl)) {
+        setJobUrl(activeUrl)
+      }
+
       try {
         const response = await chrome.runtime.sendMessage({
           type: "GET_LATEST_JOB_DATA"
         } as RuntimeMessage)
-        setJob(response?.job || null)
+        const latestJob = response?.job as JobData | null | undefined
+        if (latestJob?.url === activeUrl) setJob(latestJob)
       } catch {
-        // Continue with direct tab scrape fallback.
+        // Continue with direct tab scrape or URL import fallback.
       }
 
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!activeTab?.id) {
+      if (!activeTab?.id || !isHttpUrl(activeUrl)) {
         setLoadingJob(false)
         return
       }
 
       try {
-        await chrome.tabs.sendMessage(activeTab.id, { type: "SCRAPE_JOB_PAGE" } as RuntimeMessage)
-      } catch {
-        setError("Could not detect this page yet. Try Paste Job URL or Selector Mode.")
+        if (isLinkedinJobsUrl(activeUrl)) {
+          await loadLinkedinJob(activeTab.id)
+        } else {
+          await loadNonLinkedinJob(activeUrl)
+        }
+      } catch (e) {
+        setError((e as Error).message || "Could not detect this page yet. Try Paste Job URL or Selector Mode.")
       } finally {
         setLoadingJob(false)
       }
@@ -227,21 +441,6 @@ function IndexPopup() {
       setLoadingSavedJobs(false)
     }
   }
-
-  const detectActiveJob = async () => {
-    setLoadingJob(true)
-    setError(null)
-
-    try {
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!activeTab?.id) throw new Error("Open a job page first.")
-      await chrome.tabs.sendMessage(activeTab.id, { type: "SCRAPE_JOB_PAGE" } as RuntimeMessage)
-    } catch (e) {
-      setError((e as Error).message || "Could not detect this page. Try Paste Job URL or Selector Mode.")
-      setLoadingJob(false)
-    }
-  }
-
 
   const saveJob = async () => {
     if (!job) return
@@ -302,12 +501,27 @@ function IndexPopup() {
     await openJobOptimizer(job)
   }
 
-  const normalizeJobUrl = (value: string) => {
-    const trimmed = value.trim()
-    if (!trimmed) throw new Error("Paste a job URL first.")
-    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
-    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only HTTP or HTTPS job URLs are supported.")
-    return url.toString()
+  const detectActiveJob = async () => {
+    setLoadingJob(true)
+    setError(null)
+
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const activeUrl = activeTab?.url || ""
+      if (!activeTab?.id || !isHttpUrl(activeUrl)) throw new Error("Open a job page first.")
+
+      setJobUrl(activeUrl)
+
+      if (isLinkedinJobsUrl(activeUrl)) {
+        await loadLinkedinJob(activeTab.id)
+      } else {
+        await loadNonLinkedinJob(activeUrl)
+      }
+    } catch (e) {
+      setError((e as Error).message || "Could not detect this page. Try Paste Job URL or Selector Mode.")
+    } finally {
+      setLoadingJob(false)
+    }
   }
 
   const importJobUrl = async () => {
@@ -315,23 +529,8 @@ function IndexPopup() {
     setError(null)
 
     try {
-      const normalizedUrl = normalizeJobUrl(jobUrl)
-      const response = await fetch(normalizedUrl, { credentials: "omit" })
-      if (!response.ok) throw new Error(`Could not fetch this URL (${response.status}).`)
-
-      const html = await response.text()
-      const documentRef = new DOMParser().parseFromString(html, "text/html")
-      const importedJob = extractJob(
-        { document: documentRef, url: normalizedUrl, source: "url-import" },
-        [linkedinExtractor, genericExtractor]
-      )
-
-      if (!importedJob) {
-        throw new Error("Fetched the page, but could not find a job description. Try Selector Mode.")
-      }
-
-      setJob(importedJob)
-      await chrome.runtime.sendMessage({ type: "JOB_DATA_UPDATED", payload: importedJob } as RuntimeMessage)
+      const importedJob = await fetchJobFromUrl(jobUrl)
+      await publishImportedJob(importedJob)
     } catch (e) {
       setError((e as Error).message || "Could not import this job URL.")
     } finally {
