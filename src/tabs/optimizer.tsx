@@ -569,7 +569,7 @@ function OptimizerPage() {
               onClick={optimizeResume}
               disabled={optimizing || parsingResume || !job || !resumeText.trim()}
               className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold">
-              {optimizing ? "Analyzing..." : "Analyze Fit"}
+              {optimizing ? "Updating..." : "Update Your Resume"}
             </Button>
           </div>
 
