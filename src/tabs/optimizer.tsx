@@ -162,7 +162,10 @@ const toList = (value: unknown, fallback: string[] = []) => {
 
 const toScore = (value: unknown, fallback = 0) => {
   const score = Number(value)
-  return Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : fallback
+  if (!Number.isFinite(score)) return fallback
+
+  const percentScore = score > 0 && score <= 1 ? score * 100 : score
+  return Math.max(0, Math.min(100, Math.round(percentScore)))
 }
 
 const normalizeQuestions = (value: unknown): InterviewQuestion[] => {
@@ -489,7 +492,6 @@ function OptimizerPage() {
       const analysisBody = await analysisResponse.json()
       if (!analysisResponse.ok) throw new Error(analysisBody?.error || "Failed to analyze fit")
       const normalizedAnalysis = normalizeCareerAnalysis(analysisBody, job, resumeText)
-      setAnalysis(normalizedAnalysis)
       if (hasChromeExtensionApi()) {
         const stored = await chrome.storage.local.get(RECENT_ANALYSES_KEY)
         const recent = ((stored[RECENT_ANALYSES_KEY] || []) as Array<{ job: JobData; analysis: CareerAnalysis; createdAt: string }>)
@@ -516,6 +518,7 @@ function OptimizerPage() {
       const body = await response.json()
       if (!response.ok) throw new Error(body?.error || "Failed to optimize resume")
       setOptimizationProgress(100)
+      setAnalysis(normalizedAnalysis)
       setResult(normalizeOptimizeResult(body, resumeText))
     } catch (e) {
       setError((e as Error).message || "Failed to optimize resume.")
