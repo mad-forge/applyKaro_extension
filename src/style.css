@@ -341,3 +341,34 @@
 .ak-dashboard-bg .ak-progress {
   background: rgba(132, 167, 194, 0.22);
 }
+
+.ak-dashboard-bg,
+.ak-dashboard-bg * {
+  scrollbar-color: rgba(99, 204, 238, 0.58) rgba(2, 8, 18, 0.34);
+  scrollbar-width: thin;
+}
+
+.ak-dashboard-bg ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.ak-dashboard-bg ::-webkit-scrollbar-track {
+  background: rgba(2, 8, 18, 0.34);
+  border-radius: 999px;
+}
+
+.ak-dashboard-bg ::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 2px solid rgba(2, 8, 18, 0.34);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(199, 243, 255, 0.86), rgba(78, 184, 223, 0.62) 45%, rgba(236, 128, 42, 0.38));
+  background-clip: padding-box;
+}
+
+.ak-dashboard-bg ::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(180deg, rgba(232, 250, 255, 0.95), rgba(99, 209, 246, 0.78) 45%, rgba(236, 128, 42, 0.52));
+  background-clip: padding-box;
+}
