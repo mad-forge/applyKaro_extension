@@ -76,25 +76,27 @@
   border: 0;
   border-radius: 18px;
   background:
-    radial-gradient(circle at 22% 16%, rgba(231, 248, 255, 0.24), transparent 20%),
-    radial-gradient(circle at 78% 78%, rgba(236, 128, 42, 0.2), transparent 34%),
-    linear-gradient(145deg, rgba(14, 54, 68, 0.78), rgba(4, 12, 24, 0.88) 48%, rgba(1, 2, 8, 0.94));
+    radial-gradient(circle at 22% 16%, rgba(231, 248, 255, 0.3), transparent 20%),
+    radial-gradient(circle at 78% 78%, rgba(236, 128, 42, 0.24), transparent 34%),
+    linear-gradient(145deg, rgba(17, 73, 91, 0.88), rgba(5, 17, 31, 0.94) 48%, rgba(1, 2, 8, 0.98));
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.06),
+    inset 0 12px 28px rgba(225, 247, 255, 0.08),
     inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 12px 24px rgba(0, 0, 0, 0.32);
+    0 16px 30px rgba(0, 0, 0, 0.44),
+    0 0 22px rgba(91, 205, 244, 0.12);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.34);
 }
 
 .ak-popup-bg .ak-button-secondary {
   background:
-    radial-gradient(circle at 24% 18%, rgba(223, 246, 255, 0.14), transparent 24%),
-    radial-gradient(circle at 83% 72%, rgba(236, 128, 42, 0.12), transparent 30%),
-    linear-gradient(145deg, rgba(8, 31, 45, 0.54), rgba(3, 9, 19, 0.78) 48%, rgba(1, 2, 8, 0.92));
+    radial-gradient(circle at 24% 18%, rgba(223, 246, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 83% 72%, rgba(236, 128, 42, 0.16), transparent 30%),
+    linear-gradient(145deg, rgba(9, 38, 53, 0.74), rgba(3, 9, 19, 0.88) 48%, rgba(1, 2, 8, 0.96));
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.045),
+    inset 0 12px 28px rgba(225, 247, 255, 0.06),
     inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 11px 23px rgba(0, 0, 0, 0.28);
+    0 14px 28px rgba(0, 0, 0, 0.38),
+    0 0 18px rgba(91, 205, 244, 0.08);
 }
 
 .ak-popup-bg .ak-button::before,
@@ -127,9 +129,10 @@
 
 .ak-popup-bg .ak-button:hover {
   box-shadow:
-    inset 0 12px 28px rgba(225, 247, 255, 0.085),
+    inset 0 12px 28px rgba(225, 247, 255, 0.12),
     inset 0 -13px 24px rgba(0, 0, 0, 0.32),
-    0 14px 28px rgba(0, 0, 0, 0.38);
+    0 18px 34px rgba(0, 0, 0, 0.46),
+    0 0 26px rgba(91, 205, 244, 0.16);
 }
 
 .ak-popup-bg .ak-input {
