@@ -147,8 +147,12 @@
 }
 
 .ak-popup-bg .custom-rays {
-  opacity: 0.58;
+  opacity: 0.76;
   mix-blend-mode: screen;
+}
+
+.ak-popup-bg .popup-rays {
+  filter: drop-shadow(0 0 16px rgba(151, 230, 255, 0.32));
 }
 
 .custom-rays {
