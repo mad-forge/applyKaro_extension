@@ -765,7 +765,7 @@ function IndexPopup() {
             onClick={openOptimizer}
             disabled={!job}
             className="ak-button plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            Open Dashboard
+            Optimize Your Resume
           </button>
         </div>
 
