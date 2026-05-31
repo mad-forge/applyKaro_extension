@@ -3,6 +3,8 @@ import "~style.css"
 import { useEffect, useMemo, useState } from "react"
 
 import LightRays from "~components/LightRays"
+import { extractJob, genericExtractor } from "~lib/extraction"
+import { linkedinExtractor } from "~lib/linkedin"
 import type { JobData, RuntimeMessage } from "~lib/types"
 
 type SavedJob = {
@@ -88,6 +90,9 @@ function IndexPopup() {
   const [showSavedJobs, setShowSavedJobs] = useState(false)
   const [showOptimizer, setShowOptimizer] = useState(false)
   const [resumeText, setResumeText] = useState("")
+  const [jobUrl, setJobUrl] = useState("")
+  const [importingUrl, setImportingUrl] = useState(false)
+  const [selectorMode, setSelectorMode] = useState(false)
   const [activeUserId, setActiveUserId] = useState(DEMO_USER_ID)
   const [activeUserLabel, setActiveUserLabel] = useState("Chrome profile")
 
@@ -147,146 +152,6 @@ function IndexPopup() {
   }, [])
 
   useEffect(() => {
-    const scrapeActiveTabDirectly = async (tabId: number): Promise<JobData | null> => {
-      const [injection] = await chrome.scripting.executeScript({
-        target: { tabId },
-        func: () => {
-          const textFrom = (element: Element | null): string =>
-            (element?.textContent || "").replace(/\s+/g, " ").trim()
-
-          const formattedTextFrom = (element: Element | null): string => {
-            if (!element) return ""
-            const raw =
-              element instanceof HTMLElement
-                ? element.innerText || element.textContent || ""
-                : element.textContent || ""
-
-            return raw
-              .replace(/\r/g, "")
-              .replace(/[ \t]+\n/g, "\n")
-              .replace(/\n[ \t]+/g, "\n")
-              .replace(/\n{3,}/g, "\n\n")
-              .replace(
-                /(About the job|What You'll Do|Key Responsibilities|What You'll Need|Technical Skills|Preferred \/ Nice To Have|Education & Experience|How We Work(?: \(core Competencies\))?|Responsibilities|Qualifications|Requirements|Minimum qualifications|Preferred qualifications|Skills)(?=\s+[A-Z(])/g,
-                "\n\n$1\n"
-              )
-              .trim()
-          }
-
-          const first = (selectors: string[]): Element | null => {
-            for (const selector of selectors) {
-              const match = document.querySelector(selector)
-              if (match) return match
-            }
-            return null
-          }
-
-          const visibleText = (selectors: string[]): string => {
-            for (const selector of selectors) {
-              for (const element of Array.from(document.querySelectorAll(selector))) {
-                const rect = element.getBoundingClientRect()
-                const text = textFrom(element)
-                if (rect.width > 0 && rect.height > 0 && text) return text
-              }
-            }
-            return ""
-          }
-
-          const parseLocationAndWorkplace = (text: string) => {
-            const cleaned = text.replace(/\s+/g, " ").trim()
-            const workplaceMatch = cleaned.match(/\b(remote|hybrid|on-site|onsite)\b/i)
-            const workplace = workplaceMatch
-              ? workplaceMatch[1].replace(/^onsite$/i, "On-site").replace(/^on-site$/i, "On-site")
-              : ""
-
-            const location = cleaned
-              .replace(/\b(remote|hybrid|on-site|onsite)\b/gi, "")
-              .replace(/\b(full-time|part-time|contract|internship|temporary|volunteer)\b/gi, "")
-              .replace(/\b\d+\s*(applicants?|reposts?)\b/gi, "")
-              .replace(/\bpromoted\b/gi, "")
-              .replace(/\s*[·|]\s*/g, " ")
-              .replace(/\s{2,}/g, " ")
-              .trim()
-
-            return { location, workplace }
-          }
-
-          const inferWorkplace = (text: string) => {
-            if (/\bremote\b/i.test(text)) return "Remote"
-            if (/\bhybrid\b/i.test(text)) return "Hybrid"
-            if (/\bon[-\s]?site\b/i.test(text)) return "On-site"
-            return ""
-          }
-
-          if (!window.location.href.includes("linkedin.com/jobs")) return null
-
-          const title = visibleText([
-            ".jobs-search__job-details--container h1",
-            ".job-view-layout h1",
-            ".jobs-details h1",
-            ".jobs-unified-top-card h1",
-            ".jobs-details__main-content h1",
-            "h1.t-24.t-bold.inline",
-            "h1.job-details-jobs-unified-top-card__job-title"
-          ])
-
-          const company = visibleText([
-            ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name a",
-            ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name",
-            ".job-view-layout .job-details-jobs-unified-top-card__company-name a",
-            ".job-view-layout .job-details-jobs-unified-top-card__company-name",
-            ".jobs-unified-top-card__company-name a",
-            ".jobs-unified-top-card__company-name"
-          ])
-
-          const detailsText = visibleText([
-            ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
-            ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
-            ".jobs-unified-top-card__primary-description",
-            ".jobs-unified-top-card__bullet",
-            ".job-details-jobs-unified-top-card__tertiary-description-container",
-            ".topcard__flavor-row"
-          ])
-
-          const descriptionContainer =
-            first([
-              ".jobs-search__job-details--container .jobs-description-content__text",
-              ".jobs-search__job-details--container .jobs-box__html-content",
-              ".jobs-search__job-details--container .jobs-description__content",
-              ".job-view-layout .jobs-description-content__text",
-              ".job-view-layout .jobs-box__html-content",
-              ".job-view-layout .jobs-description__content",
-              ".jobs-details .jobs-description-content__text",
-              ".jobs-details .jobs-box__html-content",
-              ".jobs-details .jobs-description__content"
-            ]) ||
-            first([
-              ".jobs-search__job-details--container",
-              ".job-view-layout",
-              ".jobs-details__main-content",
-              ".jobs-details"
-            ])
-
-          const description = formattedTextFrom(descriptionContainer)
-          const parsedDetails = parseLocationAndWorkplace(detailsText)
-          const workplace = parsedDetails.workplace || inferWorkplace(`${detailsText}\n${description}`)
-          if (!title || !company || description.length < 80) return null
-
-          return {
-            title,
-            company,
-            location: parsedDetails.location,
-            workplace,
-            description,
-            url: window.location.href,
-            scrapedAt: new Date().toISOString()
-          }
-        }
-      })
-
-      return (injection?.result as JobData | null) || null
-    }
-
     const load = async () => {
       setLoadingJob(true)
       setError(null)
@@ -309,10 +174,7 @@ function IndexPopup() {
       try {
         await chrome.tabs.sendMessage(activeTab.id, { type: "SCRAPE_JOB_PAGE" } as RuntimeMessage)
       } catch {
-        if (activeTab.url?.includes("linkedin.com/jobs")) {
-          const fallbackJob = await scrapeActiveTabDirectly(activeTab.id)
-          if (fallbackJob) setJob(fallbackJob)
-        }
+        setError("Could not detect this page yet. Try Paste Job URL or Selector Mode.")
       } finally {
         setLoadingJob(false)
       }
@@ -321,14 +183,18 @@ function IndexPopup() {
     const listener = (message: RuntimeMessage) => {
       if (message.type === "JOB_DATA_UPDATED") {
         setJob(message.payload)
+        setSelectorMode(false)
         setLoadingJob(false)
+      }
+      if (message.type === "SELECTOR_MODE_CANCELLED") {
+        setSelectorMode(false)
       }
     }
 
     chrome.runtime.onMessage.addListener(listener)
     load().catch(() => {
       setLoadingJob(false)
-      setError("Could not load LinkedIn job details.")
+      setError("Could not load job details.")
     })
 
     return () => chrome.runtime.onMessage.removeListener(listener)
@@ -361,6 +227,21 @@ function IndexPopup() {
       setLoadingSavedJobs(false)
     }
   }
+
+  const detectActiveJob = async () => {
+    setLoadingJob(true)
+    setError(null)
+
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (!activeTab?.id) throw new Error("Open a job page first.")
+      await chrome.tabs.sendMessage(activeTab.id, { type: "SCRAPE_JOB_PAGE" } as RuntimeMessage)
+    } catch (e) {
+      setError((e as Error).message || "Could not detect this page. Try Paste Job URL or Selector Mode.")
+      setLoadingJob(false)
+    }
+  }
+
 
   const saveJob = async () => {
     if (!job) return
@@ -419,6 +300,60 @@ function IndexPopup() {
   const openOptimizer = async () => {
     if (!job) return
     await openJobOptimizer(job)
+  }
+
+  const normalizeJobUrl = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) throw new Error("Paste a job URL first.")
+    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only HTTP or HTTPS job URLs are supported.")
+    return url.toString()
+  }
+
+  const importJobUrl = async () => {
+    setImportingUrl(true)
+    setError(null)
+
+    try {
+      const normalizedUrl = normalizeJobUrl(jobUrl)
+      const response = await fetch(normalizedUrl, { credentials: "omit" })
+      if (!response.ok) throw new Error(`Could not fetch this URL (${response.status}).`)
+
+      const html = await response.text()
+      const documentRef = new DOMParser().parseFromString(html, "text/html")
+      const importedJob = extractJob(
+        { document: documentRef, url: normalizedUrl, source: "url-import" },
+        [linkedinExtractor, genericExtractor]
+      )
+
+      if (!importedJob) {
+        throw new Error("Fetched the page, but could not find a job description. Try Selector Mode.")
+      }
+
+      setJob(importedJob)
+      await chrome.runtime.sendMessage({ type: "JOB_DATA_UPDATED", payload: importedJob } as RuntimeMessage)
+    } catch (e) {
+      setError((e as Error).message || "Could not import this job URL.")
+    } finally {
+      setImportingUrl(false)
+    }
+  }
+
+  const startSelectorMode = async () => {
+    setError(null)
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!activeTab?.id) {
+      setError("Open the job page first, then start Selector Mode.")
+      return
+    }
+
+    try {
+      await chrome.tabs.sendMessage(activeTab.id, { type: "START_SELECTOR_MODE" } as RuntimeMessage)
+      setSelectorMode(true)
+      window.close()
+    } catch {
+      setError("Selector Mode could not start on this page. Refresh the page and try again.")
+    }
   }
 
   const optimizeSavedJob = async (savedJob: SavedJob) => {
@@ -544,7 +479,7 @@ function IndexPopup() {
           {loadingJob && <p className="plasmo-text-sm plasmo-text-sky-100/70">Loading job details...</p>}
           {!loadingJob && !job && (
             <p className="plasmo-text-sm plasmo-text-sky-100/70">
-              Open a LinkedIn job page to extract title, company, and description.
+              Detect an open job page, paste a job URL, or use Selector Mode on unsupported websites.
             </p>
           )}
           {job && (
@@ -563,20 +498,56 @@ function IndexPopup() {
           )}
         </div>
 
-        <div className="plasmo-mt-4 plasmo-flex plasmo-gap-2.5">
+        <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-3">
+          <label className="plasmo-block plasmo-text-[11px] plasmo-font-semibold plasmo-text-sky-100/75">
+            Paste Job URL
+          </label>
+          <div className="plasmo-mt-2 plasmo-flex plasmo-gap-2">
+            <input
+              type="url"
+              value={jobUrl}
+              onChange={(event) => setJobUrl(event.target.value)}
+              placeholder="https://company.com/jobs/role"
+              className="ak-input plasmo-min-w-0 plasmo-flex-1 plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-xs plasmo-outline-none"
+            />
+            <button
+              type="button"
+              onClick={importJobUrl}
+              disabled={importingUrl}
+              className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold">
+              {importingUrl ? "Fetch..." : "Fetch"}
+            </button>
+          </div>
+        </div>
+
+        <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-2 plasmo-gap-2.5">
+          <button
+            type="button"
+            onClick={detectActiveJob}
+            disabled={loadingJob}
+            className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
+            {loadingJob ? "Detecting..." : "Detect Job"}
+          </button>
+          <button
+            type="button"
+            onClick={startSelectorMode}
+            disabled={selectorMode}
+            className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
+            {selectorMode ? "Selecting..." : "Selector Mode"}
+          </button>
           <button
             type="button"
             onClick={saveJob}
             disabled={!job || saving}
             className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            {saving ? "Saving..." : "Save Job"}
+            {saving ? "Analyzing..." : "Analyze"}
           </button>
           <button
             type="button"
             onClick={openOptimizer}
             disabled={!job}
             className="ak-button plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            Optimize Resume
+            Open Dashboard
           </button>
         </div>
 
