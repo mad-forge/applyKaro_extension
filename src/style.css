@@ -63,15 +63,11 @@
   border: 0;
   border-radius: 20px;
   background:
-    linear-gradient(145deg, rgba(87, 206, 244, 0.08), rgba(5, 11, 24, 0.6) 35%, rgba(1, 2, 8, 0.76) 78%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(236, 128, 42, 0.045));
+    linear-gradient(145deg, rgba(87, 206, 244, 0.05), rgba(5, 11, 24, 0.62) 35%, rgba(1, 2, 8, 0.78) 78%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(236, 128, 42, 0.025));
   box-shadow:
-    inset 0 0 0 1px rgba(225, 247, 255, 0.12),
-    inset 0 1px 0 rgba(225, 247, 255, 0.22),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.14),
     inset 0 -18px 38px rgba(0, 0, 0, 0.34),
-    0 18px 42px rgba(0, 0, 0, 0.42),
-    0 0 24px rgba(91, 205, 244, 0.06);
+    0 18px 42px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(14px) saturate(1.08);
 }
 
@@ -84,12 +80,9 @@
     radial-gradient(circle at 78% 78%, rgba(236, 128, 42, 0.2), transparent 34%),
     linear-gradient(145deg, rgba(14, 54, 68, 0.78), rgba(4, 12, 24, 0.88) 48%, rgba(1, 2, 8, 0.94));
   box-shadow:
-    inset 0 0 0 1px rgba(91, 205, 244, 0.24),
-    inset 0 1px 0 rgba(225, 247, 255, 0.38),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.28),
+    inset 0 12px 28px rgba(225, 247, 255, 0.06),
     inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 12px 24px rgba(0, 0, 0, 0.34),
-    0 0 14px rgba(91, 205, 244, 0.1);
+    0 12px 24px rgba(0, 0, 0, 0.32);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.34);
 }
 
@@ -99,16 +92,14 @@
     radial-gradient(circle at 83% 72%, rgba(236, 128, 42, 0.12), transparent 30%),
     linear-gradient(145deg, rgba(8, 31, 45, 0.54), rgba(3, 9, 19, 0.78) 48%, rgba(1, 2, 8, 0.92));
   box-shadow:
-    inset 0 0 0 1px rgba(91, 205, 244, 0.2),
-    inset 0 1px 0 rgba(225, 247, 255, 0.24),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.16),
+    inset 0 12px 28px rgba(225, 247, 255, 0.045),
     inset 0 -13px 24px rgba(0, 0, 0, 0.38),
-    0 11px 23px rgba(0, 0, 0, 0.3);
+    0 11px 23px rgba(0, 0, 0, 0.28);
 }
 
 .ak-popup-bg .ak-button::before,
 .ak-popup-bg .ak-button-secondary::before {
-  content: "";
+  content: none;
   position: absolute;
   top: 7px;
   left: 17%;
@@ -122,7 +113,7 @@
 
 .ak-popup-bg .ak-button::after,
 .ak-popup-bg .ak-button-secondary::after {
-  content: "";
+  content: none;
   position: absolute;
   left: 14%;
   right: 14%;
@@ -136,24 +127,18 @@
 
 .ak-popup-bg .ak-button:hover {
   box-shadow:
-    inset 0 0 0 1px rgba(143, 228, 252, 0.42),
-    inset 0 1px 0 rgba(225, 247, 255, 0.5),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.32),
+    inset 0 12px 28px rgba(225, 247, 255, 0.085),
     inset 0 -13px 24px rgba(0, 0, 0, 0.32),
-    0 14px 28px rgba(0, 0, 0, 0.4),
-    0 0 20px rgba(91, 205, 244, 0.14);
+    0 14px 28px rgba(0, 0, 0, 0.38);
 }
 
 .ak-popup-bg .ak-input {
-  border-color: rgba(88, 194, 228, 0.22);
+  border: 0;
   border-radius: 16px;
   background:
     linear-gradient(145deg, rgba(1, 3, 10, 0.78), rgba(5, 17, 28, 0.58));
   color: #f3fbff;
   box-shadow:
-    inset 0 0 0 1px rgba(225, 247, 255, 0.08),
-    inset 0 1px 0 rgba(225, 247, 255, 0.12),
-    inset 0 -1px 0 rgba(236, 128, 42, 0.16),
     inset 0 -10px 20px rgba(0, 0, 0, 0.32),
     0 10px 20px rgba(0, 0, 0, 0.2);
 }
