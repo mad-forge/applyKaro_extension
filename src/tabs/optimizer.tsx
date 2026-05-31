@@ -463,17 +463,17 @@ function OptimizerPage() {
             <LightRays
               raysOrigin="top-center"
               raysColor="#ffffff"
-              raysSpeed={1}
-              lightSpread={1.05}
-              rayLength={4.8}
+              raysSpeed={1.15}
+              lightSpread={1.22}
+              rayLength={6.2}
               followMouse={true}
-              mouseInfluence={0.1}
+              mouseInfluence={0.16}
               noiseAmount={0}
               distortion={0}
-              className="custom-rays"
+              className="custom-rays dashboard-rays"
               pulsating={false}
-              fadeDistance={1.2}
-              saturation={1.15}
+              fadeDistance={1.45}
+              saturation={1.45}
             />
           </div>
         </div>

@@ -253,8 +253,12 @@
 }
 
 .ak-dashboard-bg .custom-rays {
-  opacity: 0.54;
+  opacity: 0.72;
   mix-blend-mode: screen;
+}
+
+.ak-dashboard-bg .dashboard-rays {
+  filter: drop-shadow(0 0 18px rgba(151, 230, 255, 0.35));
 }
 
 .ak-dashboard-bg .ak-card-soft {
