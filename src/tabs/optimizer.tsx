@@ -823,9 +823,11 @@ function OptimizerPage() {
                         <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-800">
                           After: {change.after}
                         </p>
-                        <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-600">
-                          Why: {change.reason}
-                        </p>
+                        {change.reason && (
+                          <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-600">
+                            Why: {change.reason}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>

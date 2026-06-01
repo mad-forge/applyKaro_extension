@@ -601,16 +601,40 @@ const sanitizeOptimizedResumeText = (text: string) => {
     .trim()
 }
 
+const isGenericSafeKeyword = (term: string) =>
+  genericJdTerms.some((generic) => normalize(generic) === normalize(term))
+
+const findUnsupportedInsertedTerms = (
+  originalResume: string,
+  optimizedResume: string,
+  jobDescription: string,
+  company?: string
+) =>
+  uniq(extractJdKeywords(jobDescription, company))
+    .filter((term) => skillKeywordPattern.test(term))
+    .filter((term) => !isGenericSafeKeyword(term))
+    .filter((term) => !hasKeyword(originalResume, term) && hasKeyword(optimizedResume, term))
+
 const isBadGeneratedText = (value: string) =>
   /\b(Target role alignment|Role-fit keywords|Targeted ATS Keywords)\b/i.test(value)
+
+const buildChangeReason = (section: string) => {
+  if (/summary/i.test(section)) return "Tightened the summary for clearer role alignment without changing the candidate's background."
+  if (/skills?/i.test(section)) return "Kept skills aligned with evidence already present in the resume."
+  if (/experience|bullet/i.test(section)) return "Made the existing experience bullet closer to the job responsibility while preserving truth."
+  return "Applied a targeted ATS readability improvement."
+}
 
 const sanitizeChangeLog = (
   changeLog: Array<{ section: string; before: string; after: string; reason: string }>,
   fallback: Array<{ section: string; before: string; after: string; reason: string }>
 ) => {
-  const cleaned = changeLog.filter(
-    (item) => item.after && ![item.before, item.after, item.reason].some(isBadGeneratedText)
-  )
+  const cleaned = changeLog
+    .filter((item) => item.after && ![item.before, item.after, item.reason].some(isBadGeneratedText))
+    .map((item) => ({
+      ...item,
+      reason: item.reason || buildChangeReason(item.section)
+    }))
   return cleaned.length ? cleaned : fallback
 }
 
@@ -757,16 +781,32 @@ const normalizeOptimizePayload = (
       ? optimizedResumeRaw
       : fallback.optimized_resume_text || originalResume
   const sanitizedOptimizedResumeText = sanitizeOptimizedResumeText(optimizedResumeText)
+  const unsupportedInsertedTerms = findUnsupportedInsertedTerms(
+    originalResume,
+    sanitizedOptimizedResumeText,
+    jobDescription,
+    company
+  )
+  const finalOptimizedResumeText = unsupportedInsertedTerms.length
+    ? fallback.optimized_resume_text
+    : sanitizedOptimizedResumeText
 
-  const score = computeAtsScore(jobDescription, sanitizedOptimizedResumeText, company)
+  const score = computeAtsScore(jobDescription, finalOptimizedResumeText, company)
 
   const keywordPlanRaw = payload?.keyword_injection_plan ?? payload?.keywordPlan ?? payload?.injection_plan
-  const keywordPlan = Array.isArray(keywordPlanRaw)
+  const keywordPlan = unsupportedInsertedTerms.length
+    ? [
+        ...fallback.keyword_injection_plan,
+        `Rejected unsupported AI-added skills: ${unsupportedInsertedTerms.join(", ")}`
+      ]
+    : Array.isArray(keywordPlanRaw)
     ? keywordPlanRaw.map((item) => String(item).trim()).filter(Boolean)
     : fallback.keyword_injection_plan
 
   const rewrittenRaw = payload?.rewritten_bullet_points ?? payload?.rewrittenBullets ?? payload?.bullet_rewrites
-  const rewritten = Array.isArray(rewrittenRaw)
+  const rewritten = unsupportedInsertedTerms.length
+    ? fallback.rewritten_bullet_points
+    : Array.isArray(rewrittenRaw)
     ? rewrittenRaw
         .map((item: any) => ({
           original: String(item?.original ?? "").trim(),
@@ -776,7 +816,9 @@ const normalizeOptimizePayload = (
     : fallback.rewritten_bullet_points
 
   const changeLogRaw = payload?.change_log ?? payload?.changeLog ?? payload?.changes
-  const changeLog = Array.isArray(changeLogRaw)
+  const changeLog = unsupportedInsertedTerms.length
+    ? fallback.change_log
+    : Array.isArray(changeLogRaw)
     ? changeLogRaw
         .map((item: any) => ({
           section: String(item?.section ?? "Update").trim(),
@@ -788,12 +830,12 @@ const normalizeOptimizePayload = (
     : fallback.change_log
   const safeChangeLog = sanitizeChangeLog(changeLog, fallback.change_log)
 
-  const latexResume = buildStrictLatexFromResume(sanitizedOptimizedResumeText)
+  const latexResume = buildStrictLatexFromResume(finalOptimizedResumeText)
 
   return {
     missing_keywords: missingKeywords.length ? missingKeywords : fallback.missing_keywords,
     ats_score_out_of_100: score,
-    optimized_resume_text: sanitizedOptimizedResumeText,
+    optimized_resume_text: finalOptimizedResumeText,
     keyword_injection_plan: keywordPlan,
     change_log: safeChangeLog,
     rewritten_bullet_points: rewritten,
