@@ -337,11 +337,41 @@ const normalizeHeading = (line: string) => {
   return sectionAliases[cleaned]
 }
 
+const normalizeResumeLine = (line: string) =>
+  line
+    .replace(/\r/g, "")
+    .replace(/[*_`]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+
+const isLikelyDateLine = (line: string) => {
+  const cleaned = normalizeResumeLine(line)
+  if (!cleaned) return false
+  if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(cleaned)) return true
+  if (/^(till now|present)$/i.test(cleaned.replace(/^[•-]\s*/, ""))) return true
+  if (/^\d{4}\s*[-–]\s*(\d{2,4}|present)$/i.test(cleaned)) return true
+  return false
+}
+
+const isLikelyContactLine = (line: string) =>
+  /@|linkedin|github|portfolio|phone|\+?\d[\d\s().-]{7,}/i.test(normalizeResumeLine(line))
+
+const isLikelyNameLine = (line: string) => {
+  const cleaned = normalizeResumeLine(line)
+  if (!cleaned || cleaned.length > 48) return false
+  if (isLikelyDateLine(cleaned) || isLikelyContactLine(cleaned)) return false
+  if (normalizeHeading(cleaned)) return false
+  if (!/^[A-Za-z][A-Za-z\s.'-]+$/.test(cleaned)) return false
+  const words = cleaned.split(/\s+/).filter(Boolean)
+  if (words.length < 2 || words.length > 5) return false
+  return words.every((word) => word.length >= 2)
+}
+
 const splitResumeIntoSections = (text: string) => {
   const lines = text
     .replace(/\r/g, "")
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => normalizeResumeLine(line))
     .filter(Boolean)
 
   const sections: Record<string, string[]> = { HEADER: [] }
@@ -385,11 +415,12 @@ const toHref = (url: string) => {
 }
 
 const buildResumeHeader = (headerLines: string[]) => {
+  const topHeader = headerLines.slice(0, 14).map(normalizeResumeLine).filter(Boolean)
   const fallbackName = "Your Name"
-  const name =
-    headerLines.find((line) => !/@|linkedin|github|portfolio|phone|\+?\d[\d\s().-]{7,}/i.test(line)) ||
-    fallbackName
-  const contactText = headerLines.filter((line) => line !== name).join(" | ")
+  const uppercaseName = topHeader.find((line) => isLikelyNameLine(line) && line === line.toUpperCase())
+  const mixedCaseName = topHeader.find((line) => isLikelyNameLine(line))
+  const name = uppercaseName || mixedCaseName || fallbackName
+  const contactText = topHeader.filter((line) => line !== name).join(" | ")
   const email = contactText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]
   const phone = contactText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]
   const github = contactText.match(/(?:https?:\/\/)?github\.com\/[A-Za-z0-9_.-]+/i)?.[0]
@@ -398,9 +429,17 @@ const buildResumeHeader = (headerLines: string[]) => {
     .split(/[|,]/)
     .map((part) => part.trim())
     .find((part) => /(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}/i.test(part) && !/@|github\.com|linkedin\.com/i.test(part))
+  const locationLine = topHeader.find(
+    (line) =>
+      !isLikelyDateLine(line) &&
+      !isLikelyContactLine(line) &&
+      line !== name &&
+      /[A-Za-z]+,\s*[A-Za-z]+/.test(line) &&
+      line.length < 56
+  )
 
   const firstLine = [
-    headerLines.find((line) => /[A-Za-z]+,\s*[A-Za-z]+/.test(line) && !/@|github|linkedin/i.test(line)),
+    locationLine,
     phone ? `Phone: ${phone}` : "",
     email ? `Email: \\href{mailto:${latexEscape(email)}}{\\underline{${latexEscape(email)}}}` : ""
   ]
@@ -426,7 +465,7 @@ const buildResumeHeader = (headerLines: string[]) => {
 }
 
 const formatSkillLine = (line: string) => {
-  const cleaned = cleanResumeLine(line)
+  const cleaned = cleanResumeLine(normalizeResumeLine(line)).replace(/^\*+|\*+$/g, "")
   const [label, ...rest] = cleaned.split(":")
   if (rest.length && label.length <= 32) {
     return `\\textbf{${latexEscape(label)}:} ${latexEscape(rest.join(":").trim())} \\\\`
@@ -593,8 +632,11 @@ const computeAtsScore = (jobDescription: string, resumeText: string, company?: s
 
 const sanitizeOptimizedResumeText = (text: string) => {
   return text
+    .replace(/\r/g, "")
+    .replace(/[*_`]+/g, "")
     .replace(/\s*Target role alignment:[^.]*\./gi, "")
     .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trimEnd())
     .filter((line) => !/^\s*(Role-fit keywords|Targeted ATS Keywords)\s*:/i.test(line))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
