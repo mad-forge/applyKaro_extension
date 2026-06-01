@@ -28,6 +28,7 @@ type OptimizeResponse = {
   ats_score_out_of_100: number
   optimized_resume_text?: string
   optimized_latex_resume?: string
+  optimized_resume_data?: unknown
   keyword_injection_plan?: string[]
   change_log?: Array<{
     section: string
@@ -138,6 +139,10 @@ const normalizeOptimizeResult = (body: any, resumeText: string): OptimizeRespons
     optimized_resume_text: optimizedResumeText,
     optimized_latex_resume:
       typeof body?.optimized_latex_resume === "string" ? body.optimized_latex_resume : undefined,
+    optimized_resume_data:
+      body?.optimized_resume_data && typeof body.optimized_resume_data === "object"
+        ? body.optimized_resume_data
+        : undefined,
     keyword_injection_plan: Array.isArray(body?.keyword_injection_plan)
       ? body.keyword_injection_plan.map((item: unknown) => String(item))
       : [],
@@ -414,6 +419,8 @@ function OptimizerPage() {
       headers: apiHeaders,
       body: JSON.stringify({
         latex_source: result.optimized_latex_resume,
+        resume_data: result.optimized_resume_data,
+        resume_text: result.optimized_resume_text,
         job_title: job?.title
       })
     })

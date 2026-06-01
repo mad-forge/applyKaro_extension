@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { DEFAULT_RESUME_LATEX_TEMPLATE } from "@/lib/default-resume-template"
-import { buildResumeTemplateDataFromText, renderResumeLatex } from "@/lib/dynamic-resume-template"
+import { buildResumeTemplateDataFromText, renderResumeLatex, type ResumeTemplateData } from "@/lib/dynamic-resume-template"
 
 const getAIConfig = () => {
   const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY
@@ -24,6 +24,48 @@ Return ONLY strict JSON with this exact schema:
   "missing_keywords": string[],
   "ats_score_out_of_100": number,
   "optimized_resume_text": string,
+  "optimized_resume_data": {
+    "name": string,
+    "location": string,
+    "phone": string,
+    "email": string,
+    "github": string,
+    "linkedin": string,
+    "portfolio": string,
+    "summary": string,
+    "skills": {
+      "languages": string[],
+      "frontend": string[],
+      "backend_tools": string[],
+      "libraries": string[],
+      "testing": string[],
+      "data": string[]
+    },
+    "experience": [
+      {
+        "title": string,
+        "company": string,
+        "location": string,
+        "duration": string,
+        "points": string[]
+      }
+    ],
+    "projects": [
+      {
+        "title": string,
+        "stack": string,
+        "points": string[]
+      }
+    ],
+    "certifications": string[],
+    "education": [
+      {
+        "degree": string,
+        "institution": string,
+        "duration": string
+      }
+    ]
+  },
   "keyword_injection_plan": string[],
   "change_log": [
     {
@@ -63,6 +105,7 @@ Rules:
 - missing_keywords: 8-25 concrete keywords from the job description absent or weak in the resume.
 - ats_score_out_of_100: integer from 0 to 100 after optimization. Be realistic.
 - optimized_resume_text: the user's resume with only the targeted ATS edits applied.
+- optimized_resume_data: structured JSON resume data matching the schema above. Use this as the canonical download/export data.
 - keyword_injection_plan: concise notes explaining which keywords were added and where.
 - change_log: every meaningful change you made, with before/after and why.
 - rewritten_bullet_points: 5-10 optimized bullets with quantified impact where possible.
@@ -658,6 +701,37 @@ const findUnsupportedInsertedTerms = (
     .filter((term) => !isGenericSafeKeyword(term))
     .filter((term) => !hasKeyword(originalResume, term) && hasKeyword(optimizedResume, term))
 
+const findUnsupportedIdentityTerms = (originalResume: string, optimizedResume: string, company?: string) => {
+  const original = normalize(originalResume)
+  const optimized = normalize(optimizedResume)
+  const suspiciousTerms = uniq([
+    company || "",
+    "Alex Morgan",
+    "alexmorgan",
+    "John Doe",
+    "ABC Tech",
+    "Example Technologies",
+    "Example Institute",
+    "Example Academy",
+    "Sample Learning",
+    "Sample Public School",
+    "Demo Digital Studio",
+    "Demo Institute",
+    "New Delhi",
+    "Bengaluru",
+    "Remote",
+    "B.Tech",
+    "12th Science",
+    "Google Data Analytics",
+    "HackerRank SQL"
+  ])
+
+  return suspiciousTerms.filter((term) => {
+    const normalizedTerm = normalize(term)
+    return normalizedTerm && optimized.includes(normalizedTerm) && !original.includes(normalizedTerm)
+  })
+}
+
 const isBadGeneratedText = (value: string) =>
   /\b(Target role alignment|Role-fit keywords|Targeted ATS Keywords)\b/i.test(value)
 
@@ -679,6 +753,70 @@ const sanitizeChangeLog = (
       reason: item.reason || buildChangeReason(item.section)
     }))
   return cleaned.length ? cleaned : fallback
+}
+
+const toStringList = (value: unknown) =>
+  Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter(Boolean) : []
+
+const normalizeResumeData = (value: any, fallback: ResumeTemplateData): ResumeTemplateData => {
+  if (!value || typeof value !== "object") return fallback
+
+  const skills = value.skills && typeof value.skills === "object" ? value.skills : {}
+  type ExperienceItem = ResumeTemplateData["experience"][number]
+  type ProjectItem = ResumeTemplateData["projects"][number]
+  type EducationItem = ResumeTemplateData["education"][number]
+  const experience = Array.isArray(value.experience)
+    ? value.experience
+        .map((item: any) => ({
+          title: String(item?.title ?? "").trim(),
+          company: String(item?.company ?? "").trim(),
+          location: String(item?.location ?? "").trim(),
+          duration: String(item?.duration ?? "").trim(),
+          points: toStringList(item?.points)
+        }))
+        .filter((item: ExperienceItem) => item.title || item.company || item.points.length)
+    : fallback.experience
+  const projects = Array.isArray(value.projects)
+    ? value.projects
+        .map((item: any) => ({
+          title: String(item?.title ?? "").trim(),
+          stack: String(item?.stack ?? "").trim(),
+          points: toStringList(item?.points)
+        }))
+        .filter((item: ProjectItem) => item.title || item.points.length)
+    : fallback.projects
+  const education = Array.isArray(value.education)
+    ? value.education
+        .map((item: any) => ({
+          degree: String(item?.degree ?? "").trim(),
+          institution: String(item?.institution ?? "").trim(),
+          duration: String(item?.duration ?? "").trim()
+        }))
+        .filter((item: EducationItem) => item.degree || item.institution)
+    : fallback.education
+
+  return {
+    name: String(value.name ?? fallback.name).trim() || fallback.name,
+    phone: String(value.phone ?? fallback.phone ?? "").trim(),
+    email: String(value.email ?? fallback.email ?? "").trim(),
+    location: String(value.location ?? fallback.location ?? "").trim(),
+    github: String(value.github ?? fallback.github ?? "").trim(),
+    linkedin: String(value.linkedin ?? fallback.linkedin ?? "").trim(),
+    portfolio: String(value.portfolio ?? fallback.portfolio ?? "").trim(),
+    summary: String(value.summary ?? fallback.summary).trim() || fallback.summary,
+    skills: {
+      languages: toStringList(skills.languages).length ? toStringList(skills.languages) : fallback.skills.languages,
+      frontend: toStringList(skills.frontend).length ? toStringList(skills.frontend) : fallback.skills.frontend,
+      backend_tools: toStringList(skills.backend_tools).length ? toStringList(skills.backend_tools) : fallback.skills.backend_tools,
+      libraries: toStringList(skills.libraries).length ? toStringList(skills.libraries) : fallback.skills.libraries,
+      testing: toStringList(skills.testing).length ? toStringList(skills.testing) : fallback.skills.testing,
+      data: toStringList(skills.data).length ? toStringList(skills.data) : fallback.skills.data
+    },
+    experience,
+    projects,
+    certifications: toStringList(value.certifications).length ? toStringList(value.certifications) : fallback.certifications,
+    education
+  }
 }
 
 const localOptimize = ({
@@ -780,10 +918,14 @@ const localOptimize = ({
     optimized: improveBullet(bullet, safeSupported)
   }))
 
+  const optimizedResumeText = sanitizeOptimizedResumeText(lines.join("\n"))
+  const optimizedResumeData = buildResumeTemplateDataFromText(optimizedResumeText)
+
   return {
     missing_keywords: uniq(missing).slice(0, 20),
     ats_score_out_of_100: score,
-    optimized_resume_text: sanitizeOptimizedResumeText(lines.join("\n")),
+    optimized_resume_text: optimizedResumeText,
+    optimized_resume_data: optimizedResumeData,
     keyword_injection_plan: [
       safeSupported.length
         ? `Added supported keywords: ${safeSupported.join(", ")}`
@@ -794,7 +936,7 @@ const localOptimize = ({
     ],
     change_log: changeLog,
     rewritten_bullet_points: rewritten,
-    optimized_latex_resume: renderResumeLatex(buildResumeTemplateDataFromText(sanitizeOptimizedResumeText(lines.join("\n"))))
+    optimized_latex_resume: renderResumeLatex(optimizedResumeData)
   }
 }
 
@@ -830,24 +972,36 @@ const normalizeOptimizePayload = (
     jobDescription,
     company
   )
-  const finalOptimizedResumeText = unsupportedInsertedTerms.length
+  const unsupportedIdentityTerms = findUnsupportedIdentityTerms(
+    originalResume,
+    sanitizedOptimizedResumeText,
+    company
+  )
+  const shouldUseFallback = unsupportedInsertedTerms.length || unsupportedIdentityTerms.length
+  const finalOptimizedResumeText = shouldUseFallback
     ? fallback.optimized_resume_text
     : sanitizedOptimizedResumeText
 
   const score = computeAtsScore(jobDescription, finalOptimizedResumeText, company)
 
   const keywordPlanRaw = payload?.keyword_injection_plan ?? payload?.keywordPlan ?? payload?.injection_plan
-  const keywordPlan = unsupportedInsertedTerms.length
+  const keywordPlan = shouldUseFallback
     ? [
         ...fallback.keyword_injection_plan,
-        `Rejected unsupported AI-added skills: ${unsupportedInsertedTerms.join(", ")}`
+        unsupportedInsertedTerms.length
+          ? `Rejected unsupported AI-added skills: ${unsupportedInsertedTerms.join(", ")}`
+          : "",
+        unsupportedIdentityTerms.length
+          ? `Rejected unsupported AI-added profile/company data: ${unsupportedIdentityTerms.join(", ")}`
+          : ""
       ]
+        .filter(Boolean)
     : Array.isArray(keywordPlanRaw)
     ? keywordPlanRaw.map((item) => String(item).trim()).filter(Boolean)
     : fallback.keyword_injection_plan
 
   const rewrittenRaw = payload?.rewritten_bullet_points ?? payload?.rewrittenBullets ?? payload?.bullet_rewrites
-  const rewritten = unsupportedInsertedTerms.length
+  const rewritten = shouldUseFallback
     ? fallback.rewritten_bullet_points
     : Array.isArray(rewrittenRaw)
     ? rewrittenRaw
@@ -859,7 +1013,7 @@ const normalizeOptimizePayload = (
     : fallback.rewritten_bullet_points
 
   const changeLogRaw = payload?.change_log ?? payload?.changeLog ?? payload?.changes
-  const changeLog = unsupportedInsertedTerms.length
+  const changeLog = shouldUseFallback
     ? fallback.change_log
     : Array.isArray(changeLogRaw)
     ? changeLogRaw
@@ -873,12 +1027,15 @@ const normalizeOptimizePayload = (
     : fallback.change_log
   const safeChangeLog = sanitizeChangeLog(changeLog, fallback.change_log)
 
-  const latexResume = renderResumeLatex(buildResumeTemplateDataFromText(finalOptimizedResumeText))
+  const fallbackResumeData = buildResumeTemplateDataFromText(finalOptimizedResumeText)
+  const resumeData = fallbackResumeData
+  const latexResume = renderResumeLatex(resumeData)
 
   return {
     missing_keywords: missingKeywords.length ? missingKeywords : fallback.missing_keywords,
     ats_score_out_of_100: score,
     optimized_resume_text: finalOptimizedResumeText,
+    optimized_resume_data: resumeData,
     keyword_injection_plan: keywordPlan,
     change_log: safeChangeLog,
     rewritten_bullet_points: rewritten,
