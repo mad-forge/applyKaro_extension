@@ -2,7 +2,6 @@ import "~style.css"
 
 import { useEffect, useMemo, useState } from "react"
 
-import LightRays from "~components/LightRays"
 import { extractJob, genericExtractor } from "~lib/extraction"
 import type { JobData, RuntimeMessage } from "~lib/types"
 
@@ -650,283 +649,229 @@ function IndexPopup() {
   }
 
   return (
-    <div className="ak-bg ak-popup-bg plasmo-relative plasmo-w-[380px] plasmo-min-h-[580px] plasmo-overflow-hidden plasmo-text-sky-50">
-      <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
-        <div style={{ width: "100%", height: "760px", position: "relative" }}>
-          <LightRays
-            raysOrigin="top-center"
-            raysColor="#ffffff"
-            raysSpeed={1.15}
-            lightSpread={1.22}
-            rayLength={6.2}
-            followMouse={true}
-            mouseInfluence={0.16}
-            noiseAmount={0}
-            distortion={0}
-            className="custom-rays popup-rays"
-            pulsating={false}
-            fadeDistance={1.45}
-            saturation={1.45}
-          />
-        </div>
-      </div>
-      <div
-        style={{ position: "relative", zIndex: 1 }}
-        className={showSavedJobs ? "plasmo-hidden" : "plasmo-px-4 plasmo-pb-4 plasmo-pt-8"}>
-        <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
-          <div>
-            <p className="plasmo-text-xs plasmo-font-medium plasmo-text-sky-50/90">
-              applyKaro
-            </p>
-            <h1 className="plasmo-mt-1.5 plasmo-text-[25px] plasmo-leading-[1.08] plasmo-font-semibold plasmo-text-white">
-              Career Console
-            </h1>
-            <p className="ak-card-soft plasmo-mt-2 plasmo-inline-flex plasmo-max-w-[190px] plasmo-items-center plasmo-rounded-md plasmo-px-2.5 plasmo-py-1 plasmo-text-[10px] plasmo-font-medium plasmo-text-sky-100">
-              {activeUserLabel}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openSavedJobs}
-            className="ak-button ak-button-secondary plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold">
-            View Saved Jobs
-          </button>
-        </div>
+    <div className="ak-popup-v2">
+      {!showSavedJobs && (
+        <div className="ak-popup-screen">
+          <header className="ak-popup-header-v2">
+            <div>
+              <p className="ak-popup-kicker">ApplyKro</p>
+              <h1>Career Console</h1>
+              <span>{activeUserLabel}</span>
+            </div>
+            <button type="button" onClick={openSavedJobs} className="ak-popup-button ak-popup-button-secondary">
+              Saved
+            </button>
+          </header>
 
-        <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-4">
-          {loadingJob && <p className="plasmo-text-sm plasmo-text-sky-100/70">Loading job details...</p>}
-          {!loadingJob && !job && (
-            <p className="plasmo-text-sm plasmo-text-sky-100/70">
-              {isLinkedinPage
-                ? "Open a LinkedIn job page to auto fetch title, company, and job description."
-                : "For non-LinkedIn job sites, paste a job URL or use Selector Mode."}
-            </p>
-          )}
-          {job && (
-            <>
-              <h2 className="plasmo-text-[18px] plasmo-leading-[1.2] plasmo-font-semibold plasmo-text-white">{job.title}</h2>
-              <p className="plasmo-mt-1.5 plasmo-text-[13px] plasmo-font-medium plasmo-text-sky-100/80">{job.company}</p>
-              {(job.location || job.workplace) && (
-                <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-sky-200/70">
-                  {[job.location, job.workplace].filter(Boolean).join(" · ")}
-                </p>
-              )}
-              <p className="plasmo-mt-3 plasmo-text-[12px] plasmo-leading-[1.45] plasmo-text-sky-50/78">
-                {shortDescription}
+          <section className={job ? "ak-popup-job-card ak-popup-job-ready" : "ak-popup-job-card"}>
+            {loadingJob && <p className="ak-popup-muted">Loading job details...</p>}
+            {!loadingJob && !job && (
+              <p className="ak-popup-muted">
+                {isLinkedinPage
+                  ? "Open a LinkedIn job page to auto fetch title, company, and job description."
+                  : "Paste a job URL or use Selector Mode to capture this role."}
               </p>
-            </>
-          )}
-        </div>
+            )}
+            {job && (
+              <>
+                <span className="ak-popup-status">Detected job</span>
+                <h2>{job.title}</h2>
+                <p className="ak-popup-company">{job.company}</p>
+                {(job.location || job.workplace) && (
+                  <p className="ak-popup-meta">{[job.location, job.workplace].filter(Boolean).join(" · ")}</p>
+                )}
+                <p className="ak-popup-desc">{shortDescription}</p>
+              </>
+            )}
+          </section>
 
-        {showUniversalTools && (
-          <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-3">
-            <label className="plasmo-block plasmo-text-[11px] plasmo-font-semibold plasmo-text-sky-100/75">
-              Paste Job URL
-            </label>
-            <div className="plasmo-mt-2 plasmo-flex plasmo-gap-2">
-              <input
-                type="url"
-                value={jobUrl}
-                onChange={(event) => setJobUrl(event.target.value)}
-                placeholder="https://company.com/jobs/role"
-                className="ak-input plasmo-min-w-0 plasmo-flex-1 plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-xs plasmo-outline-none"
-              />
+          {showUniversalTools && (
+            <section className="ak-popup-card">
+              <label>Paste Job URL</label>
+              <div className="ak-popup-inline-form">
+                <input
+                  type="url"
+                  value={jobUrl}
+                  onChange={(event) => setJobUrl(event.target.value)}
+                  placeholder="https://company.com/jobs/role"
+                  className="ak-popup-input"
+                />
+                <button
+                  type="button"
+                  onClick={importJobUrl}
+                  disabled={importingUrl}
+                  className="ak-popup-button ak-popup-button-primary">
+                  {importingUrl ? "Fetch..." : "Fetch"}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {showUniversalTools && (
+            <div className="ak-popup-grid">
               <button
                 type="button"
-                onClick={importJobUrl}
-                disabled={importingUrl}
-                className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-2 plasmo-text-[11px] plasmo-font-semibold">
-                {importingUrl ? "Fetch..." : "Fetch"}
+                onClick={detectActiveJob}
+                disabled={loadingJob}
+                className="ak-popup-button ak-popup-button-secondary">
+                {loadingJob ? "Detecting..." : "Detect Job"}
+              </button>
+              <button
+                type="button"
+                onClick={startSelectorMode}
+                disabled={selectorMode}
+                className="ak-popup-button ak-popup-button-secondary">
+                {selectorMode ? "Selecting..." : "Selector Mode"}
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {showUniversalTools && (
-          <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-2 plasmo-gap-2.5">
+          <div className="ak-popup-grid ak-popup-main-actions">
             <button
               type="button"
-              onClick={detectActiveJob}
-              disabled={loadingJob}
-              className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-              {loadingJob ? "Detecting..." : "Detect Job"}
+              onClick={saveJob}
+              disabled={!job || saving}
+              className="ak-popup-button ak-popup-button-secondary">
+              {saving ? "Saving..." : isLinkedinPage ? "Save Job" : "Analyze"}
             </button>
             <button
               type="button"
-              onClick={startSelectorMode}
-              disabled={selectorMode}
-              className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-              {selectorMode ? "Selecting..." : "Selector Mode"}
+              onClick={openOptimizer}
+              disabled={!job}
+              className="ak-popup-button ak-popup-button-primary">
+              Optimize Resume
             </button>
           </div>
-        )}
 
-        <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-2 plasmo-gap-2.5">
-          <button
-            type="button"
-            onClick={saveJob}
-            disabled={!job || saving}
-            className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            {saving ? "Saving..." : isLinkedinPage ? "Save Job" : "Analyze"}
-          </button>
-          <button
-            type="button"
-            onClick={openOptimizer}
-            disabled={!job}
-            className="ak-button plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-whitespace-nowrap plasmo-px-4 plasmo-py-2.5 plasmo-text-[12px] plasmo-font-semibold">
-            Optimize Your Resume
-          </button>
+          {error && <p className="ak-popup-error">{error}</p>}
         </div>
-
-        {error && <p className="plasmo-mt-3 plasmo-text-xs plasmo-text-rose-300">{error}</p>}
-      </div>
+      )}
 
       {showSavedJobs && (
-        <div style={{ position: "relative", zIndex: 1 }} className="plasmo-px-4 plasmo-pb-4 plasmo-pt-8">
-          <div className="plasmo-relative plasmo-z-10 plasmo-flex plasmo-items-center plasmo-justify-between">
-            <h2 className="plasmo-text-[18px] plasmo-font-semibold plasmo-text-white">Saved Jobs</h2>
+        <div className="ak-popup-screen">
+          <header className="ak-popup-header-v2 ak-popup-subheader">
+            <div>
+              <p className="ak-popup-kicker">Job tracker</p>
+              <h1>Saved Jobs</h1>
+            </div>
             <button
               type="button"
               onClick={() => setShowSavedJobs(false)}
-              className="ak-button ak-button-secondary plasmo-rounded-md plasmo-px-3 plasmo-py-1.5 plasmo-text-[11px] plasmo-font-semibold">
+              className="ak-popup-button ak-popup-button-secondary">
               Close
             </button>
-          </div>
+          </header>
 
-          <div className="plasmo-mt-4 plasmo-max-h-[500px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-1">
-            {loadingSavedJobs && <p className="plasmo-text-sm plasmo-text-sky-100/70">Loading saved jobs...</p>}
+          <div className="ak-saved-list">
+            {loadingSavedJobs && <p className="ak-popup-muted">Loading saved jobs...</p>}
             {!loadingSavedJobs && savedJobs.length === 0 && (
-              <p className="plasmo-text-sm plasmo-text-sky-100/70">No saved jobs yet.</p>
+              <p className="ak-popup-muted">No saved jobs yet.</p>
             )}
             {savedJobs.map((savedJob) => (
-              <div
-                key={savedJob.id}
-                className="ak-card-soft plasmo-rounded-lg plasmo-p-3">
-                <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-2">
-                  <div className="plasmo-min-w-0 plasmo-flex-1">
-                    <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-white">{savedJob.title}</p>
-                    <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-sky-100/75">{savedJob.company}</p>
+              <article key={savedJob.id} className="ak-saved-job-card">
+                <div className="ak-saved-job-top">
+                  <div>
+                    <h2>{savedJob.title}</h2>
+                    <p>{savedJob.company}</p>
                     {(savedJob.location || savedJob.workplace) && (
-                      <p className="plasmo-mt-1 plasmo-text-[11px] plasmo-font-medium plasmo-text-sky-200/65">
-                        {[savedJob.location, savedJob.workplace].filter(Boolean).join(" · ")}
-                      </p>
+                      <span>{[savedJob.location, savedJob.workplace].filter(Boolean).join(" · ")}</span>
                     )}
                   </div>
-                  <div className="plasmo-flex plasmo-shrink-0 plasmo-gap-1.5">
+                  <div className="ak-saved-actions">
                     <button
                       type="button"
                       onClick={() => optimizeSavedJob(savedJob)}
-                      className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold">
+                      className="ak-popup-button ak-popup-button-primary">
                       Optimize
                     </button>
                     <button
                       type="button"
                       onClick={() => savedJob.source_url && chrome.tabs.create({ url: savedJob.source_url })}
-                      className="ak-button ak-button-secondary plasmo-relative plasmo-overflow-hidden plasmo-rounded-md plasmo-px-2.5 plasmo-py-1 plasmo-text-[11px] plasmo-font-semibold">
+                      className="ak-popup-button ak-popup-button-secondary">
                       Apply
                     </button>
                   </div>
                 </div>
 
-                {savedJob.description && (
-                  <p className="plasmo-mt-3 plasmo-text-[11px] plasmo-leading-5 plasmo-text-sky-50/72">
-                    {getPreviewText(savedJob.description)}
-                  </p>
-                )}
+                {savedJob.description && <p className="ak-saved-desc">{getPreviewText(savedJob.description)}</p>}
 
-                <div className="plasmo-mt-3 plasmo-border-l-2 plasmo-border-cyan-300/35 plasmo-pl-3 plasmo-text-xs plasmo-leading-5 plasmo-text-sky-100/65">
+                <div className="ak-saved-meta">
                   <p>Saved {new Date(savedJob.created_at).toLocaleDateString()}</p>
                   <p>{getExpiryLabel(savedJob.created_at)}</p>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         </div>
       )}
 
       {showOptimizer && (
-        <div className="ak-bg ak-popup-bg plasmo-absolute plasmo-inset-0 plasmo-z-20 plasmo-p-5">
-          <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
-            <div style={{ width: "100%", height: "760px", position: "relative" }}>
-              <LightRays
-                raysOrigin="top-center"
-                raysColor="#ffffff"
-                raysSpeed={1.15}
-                lightSpread={1.22}
-                rayLength={6.2}
-                followMouse={true}
-                mouseInfluence={0.16}
-                noiseAmount={0}
-                distortion={0}
-                className="custom-rays popup-rays"
-                pulsating={false}
-                fadeDistance={1.45}
-                saturation={1.45}
-              />
+        <div className="ak-popup-overlay">
+          <header className="ak-popup-header-v2 ak-popup-subheader">
+            <div>
+              <p className="ak-popup-kicker">ATS check</p>
+              <h1>Resume Optimizer</h1>
             </div>
-          </div>
-          <div className="plasmo-flex plasmo-items-center plasmo-justify-between">
-            <h2 className="plasmo-text-lg plasmo-font-semibold plasmo-text-white">Resume Optimizer</h2>
             <button
               type="button"
               onClick={() => setShowOptimizer(false)}
-              className="ak-button ak-button-secondary plasmo-rounded-md plasmo-px-3 plasmo-py-1.5 plasmo-text-xs plasmo-font-semibold">
+              className="ak-popup-button ak-popup-button-secondary">
               Close
             </button>
-          </div>
+          </header>
 
-          <div className="ak-card-soft plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-rounded-lg plasmo-p-4">
-            <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-white">{job?.title}</p>
-            <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-sky-100/70">{job?.company}</p>
-          </div>
+          <section className="ak-popup-job-card ak-popup-job-ready">
+            <span className="ak-popup-status">Current role</span>
+            <h2>{job?.title}</h2>
+            <p className="ak-popup-company">{job?.company}</p>
+          </section>
 
-          <label className="plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-block plasmo-text-xs plasmo-font-medium plasmo-text-sky-100/75">
-            Base resume
-          </label>
+          <label className="ak-popup-field-label">Base resume</label>
           <textarea
             value={resumeText}
             onChange={(event) => setResumeText(event.target.value)}
-            className="ak-input plasmo-relative plasmo-z-10 plasmo-mt-2 plasmo-h-44 plasmo-w-full plasmo-resize-none plasmo-rounded-lg plasmo-p-3 plasmo-text-xs plasmo-leading-relaxed plasmo-outline-none"
+            className="ak-popup-input ak-popup-resume-box"
             placeholder="Paste your resume here..."
           />
 
-          <input
-            type="file"
-            accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
-            onChange={(event) => readResumeFile(event.target.files?.[0])}
-            className="plasmo-relative plasmo-z-10 plasmo-mt-3 plasmo-block plasmo-w-full plasmo-text-xs plasmo-text-sky-100/75 file:plasmo-mr-3 file:plasmo-rounded-md file:plasmo-border file:plasmo-border-cyan-200/30 file:plasmo-bg-sky-500/25 file:plasmo-px-3 file:plasmo-py-2 file:plasmo-text-sky-50"
-          />
+          <label className="ak-popup-file">
+            <input
+              type="file"
+              accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+              onChange={(event) => readResumeFile(event.target.files?.[0])}
+            />
+            Upload resume file
+          </label>
 
-          <div className="plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-flex plasmo-gap-2">
+          <div className="ak-popup-grid ak-popup-main-actions">
             <button
               type="button"
               onClick={saveResume}
               disabled={savingResume || !resumeText.trim()}
-              className="ak-button ak-button-secondary plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold">
+              className="ak-popup-button ak-popup-button-secondary">
               {savingResume ? "Saving..." : "Save Resume"}
             </button>
             <button
               type="button"
               onClick={optimizeResume}
               disabled={optimizing || !job || !resumeText.trim()}
-              className="ak-button plasmo-relative plasmo-flex-1 plasmo-overflow-hidden plasmo-rounded-md plasmo-px-3 plasmo-py-3 plasmo-text-sm plasmo-font-semibold">
+              className="ak-popup-button ak-popup-button-primary">
               {optimizing ? "Optimizing..." : "Run ATS"}
             </button>
           </div>
 
           {result && (
-            <div className="ak-card-soft plasmo-relative plasmo-z-10 plasmo-mt-4 plasmo-rounded-lg plasmo-p-4">
-              <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-white">
-                ATS Score: <span className="plasmo-text-cyan-200">{result.ats_score_out_of_100}/100</span>
-              </p>
-              <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-relaxed plasmo-text-sky-100/70">
-                Missing Keywords: {result.missing_keywords.join(", ") || "None"}
-              </p>
-            </div>
+            <section className="ak-popup-score-card">
+              <div>
+                <p>ATS Score</p>
+                <strong>{result.ats_score_out_of_100}/100</strong>
+              </div>
+              <p>Missing Keywords: {result.missing_keywords.join(", ") || "None"}</p>
+            </section>
           )}
         </div>
       )}
-      </div>
+    </div>
   )
 }
 

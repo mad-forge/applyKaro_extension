@@ -3,7 +3,6 @@ import "~style.css"
 import type { ButtonHTMLAttributes, ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
 
-import LightRays from "~components/LightRays"
 import type { JobData } from "~lib/types"
 
 const Button = ({
@@ -280,92 +279,78 @@ const readJsonResponse = async (response: Response) => {
   return response.json()
 }
 
-const sectionHeadings = [
-  "About the job",
-  "Job description",
-  "What You'll Do",
-  "Key Responsibilities",
-  "What You'll Need",
-  "Technical Skills",
-  "Preferred / Nice To Have",
-  "Education & Experience",
-  "How We Work",
-  "How We Work (core Competencies)",
-  "Responsibilities",
-  "Qualifications",
-  "Requirements",
-  "Minimum qualifications",
-  "Preferred qualifications",
-  "Skills"
-]
-
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-const sectionHeadingSource = sectionHeadings.map(escapeRegExp).join("|")
-
-const splitJobDescription = (description: string) => {
-  const normalized = description
-    .replace(/\r/g, "")
-    .replace(
-      new RegExp(`(${sectionHeadingSource})(?=\\s+[A-Z(])`, "g"),
-      "\n\n$1\n"
-    )
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-
-  const sections: Array<{ title: string; body: string }> = []
-  const headingPattern = new RegExp(`^(${sectionHeadingSource})$`, "i")
-  let currentTitle = "Description"
-  let currentBody: string[] = []
-
-  for (const line of normalized.split("\n").map((item) => item.trim()).filter(Boolean)) {
-    if (headingPattern.test(line)) {
-      if (currentBody.length) {
-        sections.push({ title: currentTitle, body: currentBody.join("\n") })
-      }
-      currentTitle = line
-      currentBody = []
-      continue
-    }
-
-    currentBody.push(line)
-  }
-
-  if (currentBody.length) {
-    sections.push({ title: currentTitle, body: currentBody.join("\n") })
-  }
-
-  return sections.length ? sections : [{ title: "Description", body: normalized }]
-}
-
 function OptimizerPage() {
   const [job, setJob] = useState<JobData | null>(null)
   const [resumeText, setResumeText] = useState("")
   const [result, setResult] = useState<OptimizeResponse | null>(null)
   const [analysis, setAnalysis] = useState<CareerAnalysis | null>(null)
-  const [loading, setLoading] = useState(true)
   const [savingResume, setSavingResume] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
   const [parsingResume, setParsingResume] = useState(false)
   const [resumePageCount, setResumePageCount] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [optimizationProgress, setOptimizationProgress] = useState(0)
+  const [showQuestions, setShowQuestions] = useState(false)
 
-  const jobSections = useMemo(() => splitJobDescription(job?.description || ""), [job])
+  const importantQuestions = useMemo(() => {
+    const questions = [
+      ...(analysis?.interview_prep.technical || []),
+      ...(analysis?.interview_prep.role_specific || []),
+      ...(analysis?.interview_prep.behavioral || [])
+    ]
+
+    if (questions.length) return questions.slice(0, 6)
+
+    return [
+      {
+        question: "Walk me through the most relevant project on your resume for this role.",
+        why_asked: "Interviewers want proof that your resume experience maps to the JD.",
+        evaluates: "Project depth, ownership, and role fit.",
+        talking_points: ["Problem", "Tech choices", "Impact"]
+      },
+      {
+        question: "Which JD skill is your strongest, and where have you used it?",
+        why_asked: "This validates the match beyond keywords.",
+        evaluates: "Hands-on skill depth.",
+        talking_points: ["Specific example", "Your contribution", "Result"]
+      },
+      {
+        question: "What is one missing skill from the JD, and how would you learn it quickly?",
+        why_asked: "Gaps are normal; recruiters check self-awareness.",
+        evaluates: "Learning plan and honesty.",
+        talking_points: ["Gap", "Plan", "Timeline"]
+      },
+      {
+        question: "Tell me about a time you improved performance, quality, or reliability.",
+        why_asked: "Most technical roles value measurable improvement.",
+        evaluates: "Impact and practical problem solving.",
+        talking_points: ["Before", "Action", "After"]
+      },
+      {
+        question: "How do you handle unclear requirements or changing priorities?",
+        why_asked: "This checks collaboration and ownership.",
+        evaluates: "Communication and execution style.",
+        talking_points: ["Clarifying questions", "Tradeoffs", "Delivery"]
+      },
+      {
+        question: "Tell me about a challenge or failure and what you changed after it.",
+        why_asked: "Interviewers assess growth mindset and resilience.",
+        evaluates: "Ownership, reflection, and execution maturity.",
+        talking_points: ["Situation", "What went wrong", "What improved next"]
+      }
+    ]
+  }, [analysis])
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true)
-
       if (hasChromeExtensionApi()) {
         const stored = await chrome.storage.local.get("interviewMintActiveJob")
         setJob((stored.interviewMintActiveJob as JobData | undefined) || null)
       }
       setResumeText("")
-      setLoading(false)
     }
 
     load().catch(() => {
-      setLoading(false)
       setError("Could not load optimizer data.")
     })
   }, [])
@@ -429,6 +414,7 @@ function OptimizerPage() {
       headers: apiHeaders,
       body: JSON.stringify({
         latex_source: result.optimized_latex_resume,
+        resume_text: result.optimized_resume_text,
         job_title: job?.title
       })
     })
@@ -475,6 +461,7 @@ function OptimizerPage() {
     setResult(null)
     setAnalysis(null)
     setError(null)
+    setShowQuestions(false)
 
     try {
       await saveResume()
@@ -527,316 +514,166 @@ function OptimizerPage() {
     }
   }
 
-  const renderList = (items: string[] | undefined, empty = "No evidence found yet.") => (
-    <ul className="plasmo-mt-3 plasmo-space-y-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
-      {(items?.length ? items : [empty]).map((item, index) => (
-        <li key={`${item}-${index}`}>{item}</li>
-      ))}
-    </ul>
-  )
-
-  const renderQuestionList = (title: string, questions: InterviewQuestion[] = []) => (
-    <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-      <h3 className="plasmo-text-sm plasmo-font-semibold">{title}</h3>
-      <div className="plasmo-mt-3 plasmo-space-y-3">
-        {questions.map((item, index) => (
-          <div key={`${item.question}-${index}`} className="plasmo-border-l-2 plasmo-border-stone-500/40 plasmo-pl-3">
-            <p className="plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950">{item.question}</p>
-            <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
-              Why: {item.why_asked}
-            </p>
-            <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
-              Evaluates: {item.evaluates}
-            </p>
-            <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
-              Talking points: {item.talking_points?.join(", ") || "Use concrete examples."}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+  const jobStatus = job ? `${job.title || "Role"} at ${job.company || "company"}` : "No job detected"
+  const canUpdateResume = Boolean(job && resumeText.trim() && !optimizing && !parsingResume)
 
   return (
     <ThemeProvider theme={pageTheme}>
       <PageGlobalStyles />
-      <main className="ak-bg ak-dashboard-bg plasmo-min-h-screen plasmo-text-sky-50">
-        <div style={{ position: "absolute", inset: "0 0 auto 0", pointerEvents: "none", zIndex: 0 }}>
-          <div style={{ width: "100%", height: "760px", position: "relative" }}>
-            <LightRays
-              raysOrigin="top-center"
-              raysColor="#ffffff"
-              raysSpeed={1.15}
-              lightSpread={1.22}
-              rayLength={6.2}
-              followMouse={true}
-              mouseInfluence={0.16}
-              noiseAmount={0}
-              distortion={0}
-              className="custom-rays dashboard-rays"
-              pulsating={false}
-              fadeDistance={1.45}
-              saturation={1.45}
-            />
-          </div>
-        </div>
-        <div style={{ position: "relative", zIndex: 1 }}>
-      <div className="plasmo-mx-auto plasmo-grid plasmo-max-w-[1500px] plasmo-grid-cols-1 plasmo-gap-5 plasmo-p-6 lg:plasmo-grid-cols-[0.95fr_1.05fr]">
-        <section className="ak-card-soft ak-dashboard-panel plasmo-rounded-lg plasmo-p-6">
-          <p className="plasmo-text-xs plasmo-font-semibold plasmo-uppercase plasmo-tracking-widest plasmo-text-stone-700">
-            applyKaro
-          </p>
-          <h1 className="plasmo-mt-2 plasmo-text-2xl plasmo-font-semibold">ApplyKro Dashboard</h1>
+      <main className="ak-bg ak-dashboard-bg ak-optimizer-page">
+        <div className="ak-optimizer-shell">
+          <header className="ak-optimizer-header">
+            <div>
+              <p className="ak-kicker">ApplyKro</p>
+              <h1>Resume Optimizer</h1>
+              <p className="ak-header-copy">Update your resume, review the changes, and prep for the interview.</p>
+            </div>
+            <div className={job ? "ak-job-pill ak-job-pill-ready" : "ak-job-pill"}>
+              <span>{job ? "Job ready" : "Waiting for job"}</span>
+              <strong>{jobStatus}</strong>
+            </div>
+          </header>
 
-          {loading && <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-stone-600">Loading job...</p>}
-
-          {!loading && !job && (
-            <p className="plasmo-mt-5 plasmo-text-sm plasmo-text-stone-600">
-              Detect a job, paste a URL, or use Selector Mode from the extension popup.
-            </p>
-          )}
-
-          {job && (
-            <div className="plasmo-mt-5">
-              <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-4">
+          <section className="ak-workspace">
+            <div className="ak-panel ak-input-panel">
+              <div className="ak-panel-heading">
                 <div>
-                  <h2 className="plasmo-text-2xl plasmo-font-semibold">{job.title}</h2>
-                  <p className="plasmo-mt-1 plasmo-text-base plasmo-text-stone-700">{job.company}</p>
-                  {(job.location || job.workplace) && (
-                    <p className="plasmo-mt-1 plasmo-text-sm plasmo-font-medium plasmo-text-stone-700">
-                      {[job.location, job.workplace].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
+                  <p className="ak-step-label">Step 1</p>
+                  <h2>Base Resume</h2>
                 </div>
-                <Button variant="raised"
+                <label className="ak-file-button">
+                  <input
+                    type="file"
+                    accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+                    onChange={(event) => readResumeFile(event.target.files?.[0])}
+                  />
+                  Upload PDF
+                </label>
+              </div>
+
+              <textarea
+                value={resumeText}
+                onChange={(event) => setResumeText(event.target.value)}
+                className="ak-input ak-resume-input"
+                placeholder={parsingResume ? "Reading PDF resume..." : "Paste your base resume here..."}
+              />
+
+              <div className="ak-action-row">
+                <Button
+                  variant="raised"
                   type="button"
-                  onClick={() => {
-                    if (typeof chrome !== "undefined" && chrome.tabs?.create) {
-                      chrome.tabs.create({ url: job.url })
-                      return
-                    }
-                    window.open(job.url, "_blank", "noopener,noreferrer")
-                  }}
-                  className="plasmo-relative plasmo-overflow-hidden plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold plasmo-text-stone-950">
-                  Apply
+                  onClick={saveResume}
+                  disabled={savingResume || parsingResume || !resumeText.trim()}
+                  className="ak-button-secondary">
+                  {savingResume ? "Saving..." : "Save Resume"}
+                </Button>
+                <Button
+                  variant="raised"
+                  type="button"
+                  onClick={optimizeResume}
+                  disabled={!canUpdateResume}
+                  className="ak-primary-action">
+                  {optimizing ? "Updating..." : "Update Your Resume"}
                 </Button>
               </div>
 
-              <div className="ak-card-soft plasmo-mt-5 plasmo-max-h-[72vh] plasmo-overflow-y-auto plasmo-rounded-lg plasmo-p-4">
-                <div className="plasmo-space-y-5">
-                  {jobSections.map((section, index) => (
-                    <section key={`${section.title}-${index}`}>
-                      <h3 className="plasmo-text-base plasmo-font-semibold plasmo-text-stone-950">
-                        {section.title}
-                      </h3>
-                      <p className="plasmo-mt-3 plasmo-whitespace-pre-wrap plasmo-text-sm plasmo-leading-7 plasmo-text-stone-700">
-                        {section.body}
-                      </p>
-                    </section>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="ak-card-soft ak-dashboard-panel plasmo-rounded-lg plasmo-p-6">
-          <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
-            <h2 className="plasmo-text-xl plasmo-font-semibold">Base resume</h2>
-            <input
-              type="file"
-              accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
-              onChange={(event) => readResumeFile(event.target.files?.[0])}
-              className="plasmo-max-w-[220px] plasmo-text-xs plasmo-text-stone-700 file:plasmo-mr-3 file:plasmo-border file:plasmo-border-stone-500 file:plasmo-bg-[#A0A0A0] file:plasmo-px-4 file:plasmo-py-2 file:plasmo-text-stone-950"
-            />
-          </div>
-
-          <textarea
-            value={resumeText}
-            onChange={(event) => setResumeText(event.target.value)}
-            className="ak-input plasmo-mt-4 plasmo-h-64 plasmo-w-full plasmo-resize-none plasmo-rounded-lg plasmo-p-4 plasmo-text-sm plasmo-leading-6 plasmo-outline-none"
-            placeholder={parsingResume ? "Reading PDF resume..." : "Paste your base resume here..."}
-          />
-
-          <div className="plasmo-mt-4 plasmo-flex plasmo-gap-3">
-            <Button variant="raised"
-              type="button"
-              onClick={saveResume}
-              disabled={savingResume || parsingResume || !resumeText.trim()}
-              className="plasmo-relative plasmo-overflow-hidden plasmo-px-5 plasmo-py-2 plasmo-text-sm plasmo-font-semibold disabled:plasmo-text-stone-500">
-              {savingResume ? "Saving..." : "Save Resume"}
-            </Button>
-            <Button
-              variant="raised"
-              type="button"
-              onClick={optimizeResume}
-              disabled={optimizing || parsingResume || !job || !resumeText.trim()}
-              className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-px-6 plasmo-py-2 plasmo-text-sm plasmo-font-semibold">
-              {optimizing ? "Updating..." : "Update Your Resume"}
-            </Button>
-          </div>
-
-          {optimizing && (
-            <div className="ak-card-soft plasmo-mt-4 plasmo-rounded-lg plasmo-p-3">
-              <p className="plasmo-mb-2 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">
-                Optimizing resume...
-              </p>
-              <ProgressBar value={Math.floor(optimizationProgress)} />
-            </div>
-          )}
-
-          {error && <p className="plasmo-mt-4 plasmo-text-sm plasmo-text-rose-300">{error}</p>}
-
-          {analysis && (
-            <div className="plasmo-mt-5 plasmo-space-y-4">
-              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                <div className="plasmo-flex plasmo-items-start plasmo-justify-between plasmo-gap-3">
-                  <div>
-                    <h3 className="plasmo-text-sm plasmo-font-semibold">Overview</h3>
-                    <p className="plasmo-mt-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
-                      {analysis.job_profile.summary}
-                    </p>
+              {optimizing && (
+                <div className="ak-progress-panel">
+                  <div className="ak-progress-copy">
+                    <span>Optimizing resume</span>
+                    <strong>{Math.floor(optimizationProgress)}%</strong>
                   </div>
-                  <div className="plasmo-text-right">
-                    <p className="plasmo-text-3xl plasmo-font-semibold">{analysis.match_analysis.match_score}%</p>
-                    <p className="plasmo-text-xs plasmo-text-stone-700">{analysis.fit_prediction.label}</p>
-                  </div>
-                </div>
-                <div className="plasmo-mt-4 plasmo-grid plasmo-grid-cols-3 plasmo-gap-3">
-                  <div>
-                    <p className="plasmo-text-xs plasmo-text-stone-700">Skill Match</p>
-                    <ProgressBar value={analysis.match_analysis.skill_match} />
-                  </div>
-                  <div>
-                    <p className="plasmo-text-xs plasmo-text-stone-700">Experience</p>
-                    <ProgressBar value={analysis.match_analysis.experience_match} />
-                  </div>
-                  <div>
-                    <p className="plasmo-text-xs plasmo-text-stone-700">Keywords</p>
-                    <ProgressBar value={analysis.match_analysis.keyword_match} />
-                  </div>
-                </div>
-                <p className="plasmo-mt-3 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-700">
-                  {analysis.match_analysis.explanation}
-                </p>
-              </div>
-
-              <div className="plasmo-grid plasmo-grid-cols-1 plasmo-gap-4 xl:plasmo-grid-cols-2">
-                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                  <h3 className="plasmo-text-sm plasmo-font-semibold">Job Analysis</h3>
-                  <p className="plasmo-mt-3 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Skills</p>
-                  {renderList(analysis.job_profile.skills)}
-                  <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Technologies</p>
-                  {renderList(analysis.job_profile.technologies)}
-                </div>
-                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                  <h3 className="plasmo-text-sm plasmo-font-semibold">Resume Analysis</h3>
-                  <p className="plasmo-mt-3 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Candidate Skills</p>
-                  {renderList(analysis.candidate_profile.skills)}
-                  <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Achievements</p>
-                  {renderList(analysis.candidate_profile.achievements)}
-                </div>
-              </div>
-
-              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                <h3 className="plasmo-text-sm plasmo-font-semibold">Why You're Not Matching</h3>
-                {renderList(analysis.career_copilot.why_not_matching)}
-                <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Hiring Manager Perspective</p>
-                {renderList(analysis.career_copilot.hiring_manager_perspective)}
-              </div>
-
-              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                <h3 className="plasmo-text-sm plasmo-font-semibold">Optimization</h3>
-                <p className="plasmo-mt-3 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Better Summary</p>
-                {renderList(analysis.resume_optimization.better_summary)}
-                <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">Better Experience Points</p>
-                {renderList(analysis.resume_optimization.better_experience_points)}
-                <p className="plasmo-mt-4 plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">ATS Keywords</p>
-                {renderList(analysis.resume_optimization.ats_keywords_suggestions)}
-              </div>
-
-              <div className="plasmo-grid plasmo-grid-cols-1 plasmo-gap-4 xl:plasmo-grid-cols-3">
-                {renderQuestionList("Technical", analysis.interview_prep.technical)}
-                {renderQuestionList("Role Specific", analysis.interview_prep.role_specific)}
-                {renderQuestionList("Behavioral", analysis.interview_prep.behavioral)}
-              </div>
-            </div>
-          )}
-
-          {result && (
-            <div className="plasmo-mt-5 plasmo-space-y-4">
-              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                <p className="plasmo-text-base plasmo-font-semibold">
-                  ATS Score: <span className="plasmo-text-stone-800">{result.ats_score_out_of_100}/100</span>
-                </p>
-                <p className="plasmo-mt-1 plasmo-text-xs plasmo-text-stone-700">
-                  Score is calculated from JD-keyword coverage and resume evidence match.
-                </p>
-                <p className="plasmo-mt-3 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
-                  Missing Keywords: {result.missing_keywords?.join(", ") || "None"}
-                </p>
-              </div>
-
-              <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                <div className="plasmo-flex plasmo-items-center plasmo-justify-between plasmo-gap-3">
-                  <h3 className="plasmo-text-sm plasmo-font-semibold">Optimized resume</h3>
-                  <Button
-                    variant="raised"
-                    type="button"
-                    onClick={downloadOptimizedResume}
-                    className="ak-button plasmo-relative plasmo-overflow-hidden plasmo-px-4 plasmo-py-2 plasmo-text-xs plasmo-font-semibold">
-                    Download PDF
-                  </Button>
-                </div>
-                <textarea
-                  readOnly
-                  value={result.optimized_resume_text || ""}
-                  className="ak-input plasmo-mt-3 plasmo-h-72 plasmo-w-full plasmo-resize-none plasmo-rounded-lg plasmo-p-3 plasmo-text-sm plasmo-leading-6"
-                />
-              </div>
-
-              {result.keyword_injection_plan && (
-                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                  <h3 className="plasmo-text-sm plasmo-font-semibold">Keyword plan</h3>
-                  <ul className="plasmo-mt-3 plasmo-max-h-44 plasmo-space-y-2 plasmo-overflow-y-auto plasmo-pr-2 plasmo-text-sm plasmo-leading-6 plasmo-text-stone-700">
-                    {result.keyword_injection_plan.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
+                  <ProgressBar value={Math.floor(optimizationProgress)} />
                 </div>
               )}
 
-              {result.change_log && result.change_log.length > 0 && (
-                <div className="ak-card-soft plasmo-rounded-lg plasmo-p-4">
-                  <h3 className="plasmo-text-sm plasmo-font-semibold">Changes made</h3>
-                  <div className="plasmo-mt-3 plasmo-max-h-[360px] plasmo-space-y-3 plasmo-overflow-y-auto plasmo-pr-2">
-                    {result.change_log.map((change, index) => (
-                      <div
-                        key={`${change.section}-${index}`}
-                        className="ak-card-soft plasmo-rounded-md plasmo-p-3">
-                        <p className="plasmo-text-xs plasmo-font-semibold plasmo-text-stone-800">
-                          {change.section}
-                        </p>
-                        <p className="plasmo-mt-2 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-600">
-                          Before: {change.before}
-                        </p>
-                        <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-800">
-                          After: {change.after}
-                        </p>
-                        {change.reason && (
-                          <p className="plasmo-mt-1 plasmo-text-xs plasmo-leading-5 plasmo-text-stone-600">
-                            Why: {change.reason}
-                          </p>
-                        )}
+              {error && <p className="ak-error">{error}</p>}
+            </div>
+
+            <div className="ak-panel ak-output-panel">
+              <div className="ak-panel-heading ak-output-heading">
+                <div>
+                  <p className="ak-step-label">Step 2</p>
+                  <h2>Updated Resume</h2>
+                </div>
+                {result && (
+                  <div className="ak-output-actions">
+                    <Button
+                      variant="raised"
+                      type="button"
+                      onClick={downloadOptimizedResume}
+                      className="ak-button-secondary">
+                      Download PDF
+                    </Button>
+                    <Button
+                      variant="raised"
+                      type="button"
+                      onClick={() => setShowQuestions((value) => !value)}
+                      className="ak-primary-action">
+                      Important Questions
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {result ? (
+                <textarea
+                  readOnly
+                  value={result.optimized_resume_text || ""}
+                  className="ak-input ak-updated-resume"
+                />
+              ) : (
+                <div className="ak-empty-state">
+                  <h3>Your updated resume will appear here.</h3>
+                  <p>Paste your resume and run the update once a job is detected.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {result && (
+            <section className="ak-results-grid">
+              {showQuestions && (
+                <div className="ak-panel ak-questions-panel">
+                  <div className="ak-panel-heading">
+                    <div>
+                      <p className="ak-step-label">Interview prep</p>
+                      <h2>Important Questions</h2>
+                    </div>
+                  </div>
+                  <div className="ak-question-list">
+                    {importantQuestions.map((item, index) => (
+                      <div key={`${item.question}-${index}`} className="ak-question-item">
+                        <span>{index + 1}</span>
+                        <p>{item.question}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
+
+              {result.change_log && result.change_log.length > 0 && (
+                <div className="ak-panel ak-changes-panel">
+                  <div className="ak-panel-heading">
+                    <div>
+                      <p className="ak-step-label">Resume edits</p>
+                      <h2>What Updated</h2>
+                    </div>
+                  </div>
+                  <div className="ak-change-list">
+                    {result.change_log.map((change, index) => (
+                      <article key={`${change.section}-${index}`} className="ak-change-item">
+                        <span>{change.section}</span>
+                        <p><strong>Before:</strong> {change.before}</p>
+                        <p><strong>After:</strong> {change.after}</p>
+                        {change.reason && <p><strong>Why:</strong> {change.reason}</p>}
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
           )}
-        </section>
-      </div>
         </div>
       </main>
     </ThemeProvider>
