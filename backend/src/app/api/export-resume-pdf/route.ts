@@ -67,6 +67,31 @@ const runLatexCompilerWithFallback = async (cwd: string) => {
   throw lastError || new Error("No LaTeX compiler binary found")
 }
 
+const compileWithRemoteLatexService = async (latexSource: string) => {
+  const envValue = process.env.LATEX_REMOTE_COMPILER_URL?.trim()
+  if (envValue && /^(off|false|disabled)$/i.test(envValue)) return null
+  const remoteBaseUrl = envValue || "https://latexonline.cc"
+
+  const compileUrl = new URL("/compile", remoteBaseUrl)
+  compileUrl.searchParams.set("command", "pdflatex")
+  compileUrl.searchParams.set("text", latexSource)
+
+  const response = await fetch(compileUrl.toString())
+  if (!response.ok) {
+    const details = await response.text().catch(() => "")
+    throw new Error(`Remote LaTeX compile failed (${response.status}). ${details}`.trim())
+  }
+
+  const contentType = response.headers.get("content-type") || ""
+  if (!contentType.includes("application/pdf")) {
+    const details = await response.text().catch(() => "")
+    throw new Error(`Remote LaTeX compile did not return PDF. ${details}`.trim())
+  }
+
+  const bytes = await response.arrayBuffer()
+  return Buffer.from(bytes)
+}
+
 export async function POST(request: NextRequest) {
   const workspace = path.join(os.tmpdir(), `interviewmint-${randomUUID()}`)
 
@@ -81,6 +106,32 @@ export async function POST(request: NextRequest) {
     try {
       await runLatexCompilerWithFallback(workspace)
     } catch (error) {
+      try {
+        const remotePdf = await compileWithRemoteLatexService(tex)
+        if (remotePdf) {
+          const safeTitle = String(job_title || "optimized-resume")
+            .replace(/[^a-z0-9]+/gi, "-")
+            .replace(/^-|-$/g, "")
+            .toLowerCase()
+
+          return new Response(remotePdf, {
+            headers: {
+              "Content-Type": "application/pdf",
+              "Content-Disposition": `attachment; filename="${safeTitle || "optimized-resume"}-interviewmint.pdf"`
+            }
+          })
+        }
+      } catch (remoteCompileError) {
+        return Response.json(
+          {
+            error:
+              "LaTeX compiler not available locally, and remote LaTeX compilation failed.",
+            details: (remoteCompileError as Error).message
+          },
+          { status: 500 }
+        )
+      }
+
       // Some LaTeX runs return non-zero on warnings but still emit a valid PDF.
       try {
         await fs.access(pdfPath)
@@ -88,7 +139,7 @@ export async function POST(request: NextRequest) {
         return Response.json(
           {
             error:
-              "LaTeX compiler not available or failed. Install MacTeX (`brew install --cask mactex`) or provide `PDFLATEX_PATH`/`TECTONIC_PATH` on server.",
+              "LaTeX compiler not available or failed. Install MacTeX (`brew install --cask mactex`) or provide `PDFLATEX_PATH`/`TECTONIC_PATH`. For serverless, set `LATEX_REMOTE_COMPILER_URL` (example: `https://latexonline.cc`).",
             details: (error as Error).message
           },
           { status: 500 }
