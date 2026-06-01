@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 const getAIConfig = () => {
   const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY
   const baseURL = process.env.OPENROUTER_API_KEY
-    ? "https://openrouter.ai/api/v1"
+    ? process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"
     : process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
 
   return {
@@ -282,31 +282,59 @@ export async function POST(request: Request) {
 
     if (!ai.apiKey) return NextResponse.json(fallback)
 
-    const response = await fetch(`${ai.baseURL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${ai.apiKey}`
-      },
-      body: JSON.stringify({
-        model: ai.model,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: analysisPrompt },
-          {
-            role: "user",
-            content: `JOB_TITLE:\n${job_title || "Unknown"}\n\nCOMPANY:\n${company || "Unknown"}\n\nJOB_DESCRIPTION:\n${job_description}\n\nBASE_RESUME:\n${base_resume}`
-          }
-        ]
+    let response: Response
+    try {
+      response = await fetch(`${ai.baseURL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ai.apiKey}`,
+          "HTTP-Referer": "http://localhost:3000",
+          "X-Title": "ApplyKro Resume Optimizer"
+        },
+        body: JSON.stringify({
+          model: ai.model,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: analysisPrompt },
+            {
+              role: "user",
+              content: `JOB_TITLE:\n${job_title || "Unknown"}\n\nCOMPANY:\n${company || "Unknown"}\n\nJOB_DESCRIPTION:\n${job_description}\n\nBASE_RESUME:\n${base_resume}`
+            }
+          ]
+        })
       })
-    })
+    } catch {
+      return NextResponse.json(fallback, {
+        headers: { "x-applykro-ai-fallback": "network" }
+      })
+    }
 
-    if (!response.ok) return NextResponse.json(fallback)
+    if (!response.ok) {
+      return NextResponse.json(fallback, {
+        headers: { "x-applykro-ai-fallback": "provider" }
+      })
+    }
 
-    const completion = await response.json()
+    let completion: any = null
+    try {
+      completion = await response.json()
+    } catch {
+      return NextResponse.json(fallback, {
+        headers: { "x-applykro-ai-fallback": "invalid-provider-json" }
+      })
+    }
     const raw = completion?.choices?.[0]?.message?.content || "{}"
-    const parsed = JSON.parse(typeof raw === "string" ? raw : "{}")
+    let parsed: any
+    try {
+      const jsonText = typeof raw === "string" ? raw.match(/\{[\s\S]*\}/)?.[0] || raw : "{}"
+      parsed = JSON.parse(jsonText)
+    } catch {
+      return NextResponse.json(fallback, {
+        headers: { "x-applykro-ai-fallback": "unparseable-model-output" }
+      })
+    }
 
     return NextResponse.json(normalizePayload(parsed, fallback))
   } catch (error) {

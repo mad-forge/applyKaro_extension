@@ -475,7 +475,7 @@ function OptimizerPage() {
           base_resume: resumeText
         })
       })
-      const analysisBody = await analysisResponse.json()
+      const analysisBody = await readJsonResponse(analysisResponse)
       if (!analysisResponse.ok) throw new Error(analysisBody?.error || "Failed to analyze fit")
       const normalizedAnalysis = normalizeCareerAnalysis(analysisBody, job, resumeText)
       if (hasChromeExtensionApi()) {
@@ -501,7 +501,7 @@ function OptimizerPage() {
           page_count: resumePageCount || 1
         })
       })
-      const body = await response.json()
+      const body = await readJsonResponse(response)
       if (!response.ok) throw new Error(body?.error || "Failed to optimize resume")
       setOptimizationProgress(100)
       setAnalysis(normalizedAnalysis)
@@ -519,7 +519,7 @@ function OptimizerPage() {
   return (
     <ThemeProvider theme={pageTheme}>
       <PageGlobalStyles />
-      <main className="ak-bg ak-dashboard-bg ak-optimizer-page">
+      <main className="ak-optimizer-page">
         <div className="ak-optimizer-shell">
           <header className="ak-optimizer-header">
             <div>
