@@ -414,7 +414,6 @@ function OptimizerPage() {
       headers: apiHeaders,
       body: JSON.stringify({
         latex_source: result.optimized_latex_resume,
-        resume_text: result.optimized_resume_text,
         job_title: job?.title
       })
     })
