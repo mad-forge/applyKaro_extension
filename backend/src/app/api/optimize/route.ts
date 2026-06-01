@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { DEFAULT_RESUME_LATEX_TEMPLATE } from "@/lib/default-resume-template"
+import { buildResumeTemplateDataFromText, renderResumeLatex } from "@/lib/dynamic-resume-template"
 
 const getAIConfig = () => {
   const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY
@@ -793,7 +794,7 @@ const localOptimize = ({
     ],
     change_log: changeLog,
     rewritten_bullet_points: rewritten,
-    optimized_latex_resume: buildStrictLatexFromResume(sanitizeOptimizedResumeText(lines.join("\n")))
+    optimized_latex_resume: renderResumeLatex(buildResumeTemplateDataFromText(sanitizeOptimizedResumeText(lines.join("\n"))))
   }
 }
 
@@ -872,7 +873,7 @@ const normalizeOptimizePayload = (
     : fallback.change_log
   const safeChangeLog = sanitizeChangeLog(changeLog, fallback.change_log)
 
-  const latexResume = buildStrictLatexFromResume(finalOptimizedResumeText)
+  const latexResume = renderResumeLatex(buildResumeTemplateDataFromText(finalOptimizedResumeText))
 
   return {
     missing_keywords: missingKeywords.length ? missingKeywords : fallback.missing_keywords,
