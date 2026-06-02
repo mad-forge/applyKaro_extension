@@ -387,6 +387,19 @@ const isPersonalDetailLine = (line: string) =>
   /^(Date of Birth|Marital Status|Nationality|ENGLISH|HINDI|PERSONAL DETAILS|LANGUAGES)$/i.test(cleanLine(line)) ||
   /^:/.test(cleanLine(line))
 
+const splitKnownLocation = (line: string) => {
+  const cleaned = cleanLine(line)
+  const locationPattern =
+    /(Remote|New Delhi|Muzaffarpur|Patna|Bhubaneswar|Bangalore|Bengaluru|Pune|Mumbai|Hyderabad|Chennai|Kolkata|Delhi),\s*(?:India|Bihar|Odisha|Karnataka|Maharashtra|Telangana|Tamil Nadu|West Bengal)$/i
+  const match = cleaned.match(locationPattern)
+  if (!match || typeof match.index !== "number") return { text: cleaned, location: "" }
+
+  return {
+    text: cleaned.slice(0, match.index).trim(),
+    location: cleaned.slice(match.index).trim()
+  }
+}
+
 const parseEducation = (lines: string[]): ResumeTemplateData["education"] => {
   const cleaned = lines.map(cleanLine).filter(Boolean).filter((line) => !isPersonalDetailLine(line))
   const entries: ResumeTemplateData["education"] = []
@@ -400,9 +413,8 @@ const parseEducation = (lines: string[]): ResumeTemplateData["education"] => {
     }
   }
   const splitDegreeLocation = (line: string) => {
-    const match = line.match(/^(.*?)([A-Z][A-Za-z\s]+,\s*(?:India|Bihar|Odisha|Karnataka).*)$/)
-    if (!match) return { degree: line, location: "" }
-    return { degree: match[1].trim(), location: match[2].trim() }
+    const parts = splitKnownLocation(line)
+    return { degree: parts.text, location: parts.location }
   }
   const addEntry = (degree: string, institution: string, duration = "") => {
     const cleanDegree = cleanLine(degree)
@@ -448,9 +460,8 @@ const splitCompanyDuration = (line: string) => {
 }
 
 const splitTitleLocation = (line: string) => {
-  const match = line.match(/^(.*?)([A-Z][A-Za-z\s]+,\s*(?:India|Bihar|Odisha|Karnataka).*)$/)
-  if (!match) return { title: line, location: "" }
-  return { title: match[1].trim(), location: match[2].trim() }
+  const parts = splitKnownLocation(line)
+  return { title: parts.text, location: parts.location }
 }
 
 const parseExperience = (lines: string[], fallbackDuration = ""): ResumeTemplateData["experience"] => {
