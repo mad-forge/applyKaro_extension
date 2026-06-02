@@ -261,11 +261,12 @@ const findName = (lines: string[]) =>
     const cleaned = cleanLine(line)
     return (
       /^[A-Z][A-Z\s.'-]{3,45}$/.test(cleaned) &&
-      cleaned.split(/\s+/).length >= 2 &&
+      cleaned.length >= 3 &&
       !isHeading(cleaned) &&
       !/^till now$/i.test(cleaned) &&
       !isDateOnlyLine(cleaned) &&
-      !isContactLine(cleaned)
+      !isContactLine(cleaned) &&
+      !/,/.test(cleaned)
     )
   }) ||
   lines.find((line) => {
@@ -379,7 +380,8 @@ const isRoleLine = (line: string) =>
   /\b(QA Analyst|Software Engineer|Frontend Developer|Front End Developer|Developer|Engineer)\b/i.test(cleanLine(line))
 
 const isEducationDegree = (line: string) =>
-  /^(MATRIC|INTER|BCA|MCA|B\.?TECH|BACHELOR|MASTER|12TH|10TH)\b/i.test(cleanLine(line))
+  /^(MATRIC|INTER|BCA|MCA|12TH|10TH)$/i.test(cleanLine(line)) ||
+  /^(B\.?TECH|BACHELOR|MASTER)\b/i.test(cleanLine(line))
 
 const isPersonalDetailLine = (line: string) =>
   /^(Date of Birth|Marital Status|Nationality|ENGLISH|HINDI|PERSONAL DETAILS|LANGUAGES)$/i.test(cleanLine(line)) ||
@@ -389,22 +391,96 @@ const parseEducation = (lines: string[]): ResumeTemplateData["education"] => {
   const cleaned = lines.map(cleanLine).filter(Boolean).filter((line) => !isPersonalDetailLine(line))
   const entries: ResumeTemplateData["education"] = []
   const seen = new Set<string>()
+  const splitDuration = (line: string) => {
+    const match = line.match(/\b((?:19|20)\d{2}\s*(?:--|–|-|to)\s*(?:(?:19|20)\d{2}|present)|(?:19|20)\d{2})\b/i)
+    if (!match) return { text: line, duration: "" }
+    return {
+      text: line.replace(match[0], "").trim(),
+      duration: match[0].replace(/\s*-\s*/g, " - ").replace(/\s*–\s*/g, " - ")
+    }
+  }
+  const splitDegreeLocation = (line: string) => {
+    const match = line.match(/^(.*?)([A-Z][A-Za-z\s]+,\s*(?:India|Bihar|Odisha|Karnataka).*)$/)
+    if (!match) return { degree: line, location: "" }
+    return { degree: match[1].trim(), location: match[2].trim() }
+  }
+  const addEntry = (degree: string, institution: string, duration = "") => {
+    const cleanDegree = cleanLine(degree)
+    const cleanInstitution = cleanLine(institution)
+    if (!cleanDegree && !cleanInstitution) return
+    const key = `${cleanDegree.toLowerCase()}|${cleanInstitution.toLowerCase()}|${duration.toLowerCase()}`
+    if (seen.has(key)) return
+    seen.add(key)
+    entries.push({ degree: cleanDegree, institution: cleanInstitution, duration })
+  }
 
   for (let index = 0; index < cleaned.length; index += 1) {
-    const degree = cleaned[index]
-    if (!isEducationDegree(degree)) continue
+    const current = cleaned[index]
+    const next = cleaned[index + 1] || ""
+
+    if (!isEducationDegree(current) && next && isEducationDegree(next)) {
+      const institutionParts = splitDuration(current)
+      const degreeParts = splitDegreeLocation(next)
+      addEntry(degreeParts.degree, institutionParts.text, institutionParts.duration)
+      index += 1
+      continue
+    }
+
+    if (!isEducationDegree(current)) continue
 
     const institution = cleaned
       .slice(index + 1)
       .find((line) => !isEducationDegree(line) && !isPersonalDetailLine(line)) || ""
-    const key = `${degree.toLowerCase()}|${institution.toLowerCase()}`
-    if (seen.has(key)) continue
-
-    seen.add(key)
-    entries.push({ degree, institution, duration: "" })
+    const institutionParts = splitDuration(institution)
+    addEntry(current, institutionParts.text, institutionParts.duration)
   }
 
   return entries
+}
+
+const splitCompanyDuration = (line: string) => {
+  const match = line.match(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|July|Aug|Sep|Sept|Oct|Nov|Dec)?\.?\s*(?:19|20)\d{2}\s*(?:--|–|-|to)\s*(?:Present|(?:19|20)\d{2}))\b/i)
+  if (!match) return { company: line, duration: "" }
+  return {
+    company: line.slice(0, match.index).trim(),
+    duration: match[0].replace(/\s*-\s*/g, " - ").replace(/\s*–\s*/g, " - ")
+  }
+}
+
+const splitTitleLocation = (line: string) => {
+  const match = line.match(/^(.*?)([A-Z][A-Za-z\s]+,\s*(?:India|Bihar|Odisha|Karnataka).*)$/)
+  if (!match) return { title: line, location: "" }
+  return { title: match[1].trim(), location: match[2].trim() }
+}
+
+const parseExperience = (lines: string[], fallbackDuration = ""): ResumeTemplateData["experience"] => {
+  const cleaned = lines
+    .map(cleanLine)
+    .filter(Boolean)
+    .filter((line) => !isHeading(line) && !isEducationLikeLine(line) && !isPersonalDetailLine(line))
+  const companyIndexes = cleaned
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /pvt|private|limited|ltd|solutions|technologies|system|code bucket|codebucket/i.test(line))
+    .map(({ index }) => index)
+
+  if (!companyIndexes.length) return []
+
+  return companyIndexes
+    .map((start, order) => {
+      const end = companyIndexes[order + 1] ?? cleaned.length
+      const block = cleaned.slice(start, end)
+      const companyParts = splitCompanyDuration(block[0] || "")
+      const titleParts = splitTitleLocation(block[1] || "")
+      const points = bulletize(block.slice(2), 8)
+      return {
+        title: titleParts.title || "Software Engineer",
+        company: companyParts.company || block[0] || "Company",
+        location: titleParts.location,
+        duration: companyParts.duration || fallbackDuration,
+        points
+      }
+    })
+    .filter((item) => item.company && item.points.length)
 }
 
 export const buildResumeTemplateDataFromText = (resumeText: string): ResumeTemplateData => {
@@ -457,7 +533,9 @@ export const buildResumeTemplateDataFromText = (resumeText: string): ResumeTempl
       )
   const experienceLines = sections.EXPERIENCE.length ? sections.EXPERIENCE : inferredExperienceLines
   const projectLines = [...sections.PROJECTS, ...experienceLines.filter(isProjectLikeLine)]
-  const educationLines = lines.filter((line) => isEducationLikeLine(line) || isPersonalDetailLine(line))
+  const educationLines = sections.EDUCATION.length
+    ? sections.EDUCATION
+    : lines.filter((line) => isEducationLikeLine(line) || isPersonalDetailLine(line))
 
   const experienceTitle = experienceLines.find((line) => /analyst|developer|engineer/i.test(line)) || ""
   const companyLine = experienceLines.find((line) => /solutions|limited|pvt|private|technologies|labs/i.test(line)) || ""
@@ -466,6 +544,8 @@ export const buildResumeTemplateDataFromText = (resumeText: string): ResumeTempl
       ? `${lines[0]} - Till Now`
       : ""
   const durationLine = experienceLines.find((line) => isDurationLine(line) && /20\d{2}/.test(line)) || topDuration
+
+  const parsedExperience = parseExperience(experienceLines, durationLine)
 
   return {
     name,
@@ -477,25 +557,27 @@ export const buildResumeTemplateDataFromText = (resumeText: string): ResumeTempl
     portfolio: headerLines.find((line) => /(portfolio|https?:\/\/(?!.*github|.*linkedin))/i.test(line)) || "",
     summary,
     skills: parseSkills([...skillLines, resumeText]),
-    experience: [
-      {
-        title: experienceTitle || "QA Analyst | Frontend Developer",
-        company: companyLine || "Company",
-        duration: durationLine,
-        points: bulletize(
-          experienceLines.filter(
-            (line) =>
-              line !== experienceTitle &&
-              line !== companyLine &&
-              line !== durationLine &&
-              !isProjectLikeLine(line) &&
-              !isEducationLikeLine(line) &&
-              !/^(PERSONAL DETAILS|LANGUAGES|ENGLISH|HINDI)$/i.test(line)
-          ),
-          10
-        )
-      }
-    ].filter((item) => item.points.length),
+    experience: parsedExperience.length
+      ? parsedExperience
+      : [
+          {
+            title: experienceTitle || "QA Analyst | Frontend Developer",
+            company: companyLine || "Company",
+            duration: durationLine,
+            points: bulletize(
+              experienceLines.filter(
+                (line) =>
+                  line !== experienceTitle &&
+                  line !== companyLine &&
+                  line !== durationLine &&
+                  !isProjectLikeLine(line) &&
+                  !isEducationLikeLine(line) &&
+                  !/^(PERSONAL DETAILS|LANGUAGES|ENGLISH|HINDI)$/i.test(line)
+              ),
+              10
+            )
+          }
+        ].filter((item) => item.points.length),
     projects: unique(projectLines.filter((line) => /admin panel|erp|application|dham|project/i.test(line)), 6).map((title) => {
       const index = projectLines.indexOf(title)
       return {
