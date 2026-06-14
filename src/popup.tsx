@@ -218,6 +218,23 @@ function IndexPopup() {
           return ""
         }
 
+        const findLinkedinDescription = (): Element | null => {
+          const heading = Array.from(document.querySelectorAll("h1, h2, h3, h4, div, span")).find(
+            (element) => textFrom(element).toLowerCase() === "about the job"
+          )
+
+          if (!heading) return null
+
+          let container: Element | null = heading.parentElement
+          while (container && container !== document.body) {
+            const text = formattedTextFrom(container)
+            if (text.length >= 200 && text.length <= 30000) return container
+            container = container.parentElement
+          }
+
+          return null
+        }
+
         const parseLocationAndWorkplace = (text: string) => {
           const cleaned = text.replace(/\s+/g, " ").trim()
           const workplaceMatch = cleaned.match(/\b(remote|hybrid|on-site|onsite)\b/i)
@@ -248,6 +265,8 @@ function IndexPopup() {
 
         const title = visibleText([
           ".jobs-search__job-details--container h1",
+          ".jobs-search__job-details--wrapper h1",
+          ".scaffold-layout__detail h1",
           ".job-view-layout h1",
           ".jobs-details h1",
           ".jobs-unified-top-card h1",
@@ -260,6 +279,8 @@ function IndexPopup() {
         ])
 
         const company = visibleText([
+          ".jobs-search__job-details--wrapper a[href*='/company/']",
+          ".scaffold-layout__detail a[href*='/company/']",
           ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name a",
           ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name",
           ".job-view-layout .job-details-jobs-unified-top-card__company-name a",
@@ -270,6 +291,8 @@ function IndexPopup() {
         ])
 
         const detailsText = visibleText([
+          ".jobs-search__job-details--wrapper .job-details-jobs-unified-top-card__primary-description-container",
+          ".scaffold-layout__detail .job-details-jobs-unified-top-card__primary-description-container",
           ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
           ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
           ".jobs-unified-top-card__primary-description",
@@ -295,7 +318,10 @@ function IndexPopup() {
             "#job-details",
             "[data-test-id='job-details-description']"
           ]) ||
+          findLinkedinDescription() ||
           first([
+            ".jobs-search__job-details--wrapper",
+            ".scaffold-layout__detail",
             ".jobs-search__job-details--container",
             ".job-view-layout",
             ".jobs-details__main-content",

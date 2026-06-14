@@ -8,6 +8,23 @@ import {
   type JobExtractor
 } from "./extraction"
 
+const findLinkedinDescription = (documentRef: Document): Element | null => {
+  const heading = Array.from(documentRef.querySelectorAll("h1, h2, h3, h4, div, span")).find(
+    (element) => element.textContent?.replace(/\s+/g, " ").trim().toLowerCase() === "about the job"
+  )
+
+  if (!heading) return null
+
+  let container: Element | null = heading.parentElement
+  while (container && container !== documentRef.body) {
+    const text = formattedTextFrom(container)
+    if (text.length >= 200 && text.length <= 30000) return container
+    container = container.parentElement
+  }
+
+  return null
+}
+
 export const linkedinExtractor: JobExtractor = {
   id: "linkedin",
   canExtract: ({ url }) => url.includes("linkedin.com/jobs"),
@@ -16,6 +33,8 @@ export const linkedinExtractor: JobExtractor = {
 
   const title = firstVisibleText(documentRef, [
     ".jobs-search__job-details--container h1",
+    ".jobs-search__job-details--wrapper h1",
+    ".scaffold-layout__detail h1",
     ".job-view-layout h1",
     ".jobs-details h1",
     ".jobs-unified-top-card h1",
@@ -28,6 +47,8 @@ export const linkedinExtractor: JobExtractor = {
   ])
 
   const company = firstVisibleText(documentRef, [
+    ".jobs-search__job-details--wrapper a[href*='/company/']",
+    ".scaffold-layout__detail a[href*='/company/']",
     ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name a",
     ".jobs-search__job-details--container .job-details-jobs-unified-top-card__company-name",
     ".job-view-layout .job-details-jobs-unified-top-card__company-name a",
@@ -38,6 +59,8 @@ export const linkedinExtractor: JobExtractor = {
   ])
 
   const detailsText = firstVisibleText(documentRef, [
+    ".jobs-search__job-details--wrapper .job-details-jobs-unified-top-card__primary-description-container",
+    ".scaffold-layout__detail .job-details-jobs-unified-top-card__primary-description-container",
     ".jobs-search__job-details--container .job-details-jobs-unified-top-card__primary-description-container",
     ".job-view-layout .job-details-jobs-unified-top-card__primary-description-container",
     ".jobs-unified-top-card__primary-description",
@@ -65,7 +88,10 @@ export const linkedinExtractor: JobExtractor = {
       "#job-details",
       "[data-test-id='job-details-description']"
     ]) ||
+    findLinkedinDescription(documentRef) ||
     first(documentRef, [
+      ".jobs-search__job-details--wrapper",
+      ".scaffold-layout__detail",
       ".jobs-search__job-details--container",
       ".job-view-layout",
       ".jobs-details__main-content",
