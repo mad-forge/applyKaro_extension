@@ -466,7 +466,7 @@ function IndexPopup() {
         } else if (isLinkedinUrl(activeUrl)) {
           setJob(null)
         } else {
-          await loadNonLinkedinJob(activeTab.id, activeUrl)
+          setJob(null)
         }
       } catch (e) {
         setError((e as Error).message || "Could not detect this page yet. Try Paste Job URL or Selector Mode.")
