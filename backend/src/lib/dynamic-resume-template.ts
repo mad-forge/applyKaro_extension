@@ -464,6 +464,79 @@ const splitTitleLocation = (line: string) => {
   return { title: parts.text, location: parts.location }
 }
 
+const normalizeProjectLine = (line: string) =>
+  cleanLine(line)
+    .replace(/^[•*-]\s*/, "")
+    .replace(/^[-–]\s*/, "")
+    .replace(/^Project:\s*/i, "")
+    .trim()
+
+const isProjectTitleLine = (line: string) => {
+  const cleaned = normalizeProjectLine(line)
+  if (!cleaned) return false
+  if (isDurationLine(cleaned) || isEducationLikeLine(cleaned) || isPersonalDetailLine(cleaned)) return false
+  if (/^(react|html|css|javascript|typescript|rest APIs?|redux|mui|tailwind|node\.?js)\b/i.test(cleaned)) return false
+  return /project|portal|platform|dashboard|panel|application|system|website|tool|analyzer|management/i.test(cleaned)
+}
+
+const isProjectStackLine = (line: string) => {
+  const cleaned = normalizeProjectLine(line)
+  if (!cleaned || cleaned.length > 120) return false
+  return /react|html|css|javascript|typescript|rest APIs?|redux|mui|tailwind|node\.?js|express|mongodb|sql|firebase|next\.?js/i.test(
+    cleaned
+  )
+}
+
+const parseProjects = (lines: string[], fullResumeText: string): ResumeTemplateData["projects"] => {
+  const cleaned = lines
+    .map(cleanLine)
+    .filter(Boolean)
+    .filter((line) => !isHeading(line) && !isEducationLikeLine(line) && !isPersonalDetailLine(line))
+
+  const entries: ResumeTemplateData["projects"] = []
+  let current: ResumeTemplateData["projects"][number] | null = null
+
+  const pushCurrent = () => {
+    if (!current) return
+    const title = normalizeProjectLine(current.title)
+    const stack = normalizeProjectLine(current.stack || "")
+    const points = unique(current.points.map(normalizeProjectLine).filter((point) => point.length > 15), 4)
+    if (title) entries.push({ title, stack, points })
+    current = null
+  }
+
+  for (const line of cleaned) {
+    const normalized = normalizeProjectLine(line)
+    if (!normalized || isDurationLine(normalized)) continue
+
+    if (isProjectTitleLine(normalized)) {
+      pushCurrent()
+      current = { title: normalized, stack: "", points: [] }
+      continue
+    }
+
+    if (!current) continue
+
+    if (!current.stack && isProjectStackLine(normalized)) {
+      current.stack = normalized
+      continue
+    }
+
+    current.points.push(normalized)
+  }
+
+  pushCurrent()
+
+  if (entries.length) return entries
+
+  const fallbackTitles = unique(cleaned.filter(isProjectTitleLine), 4)
+  return fallbackTitles.map((title) => ({
+    title,
+    stack: /react|html|css|api/i.test(fullResumeText) ? "React.js, HTML, CSS, REST APIs" : "",
+    points: bulletize(cleaned.filter((line) => line !== title), 3)
+  }))
+}
+
 const parseExperience = (lines: string[], fallbackDuration = ""): ResumeTemplateData["experience"] => {
   const cleaned = lines
     .map(cleanLine)
@@ -543,7 +616,7 @@ export const buildResumeTemplateDataFromText = (resumeText: string): ResumeTempl
         /tool|framework|environment|language|testing|git|jira|postman|react|css|html|javascript|cypress/i.test(line)
       )
   const experienceLines = sections.EXPERIENCE.length ? sections.EXPERIENCE : inferredExperienceLines
-  const projectLines = [...sections.PROJECTS, ...experienceLines.filter(isProjectLikeLine)]
+  const projectLines = sections.PROJECTS.length ? sections.PROJECTS : lines.filter(isProjectLikeLine)
   const educationLines = sections.EDUCATION.length
     ? sections.EDUCATION
     : lines.filter((line) => isEducationLikeLine(line) || isPersonalDetailLine(line))
@@ -589,14 +662,7 @@ export const buildResumeTemplateDataFromText = (resumeText: string): ResumeTempl
             )
           }
         ].filter((item) => item.points.length),
-    projects: unique(projectLines.filter((line) => /admin panel|erp|application|dham|project/i.test(line)), 6).map((title) => {
-      const index = projectLines.indexOf(title)
-      return {
-        title,
-        stack: /react|html|css|api/i.test(resumeText) ? "React.js, HTML, CSS, REST APIs" : "",
-        points: bulletize(projectLines.slice(index + 1, index + 6), 3)
-      }
-    }),
+    projects: parseProjects(projectLines, resumeText),
     certifications: unique(sections.CERTIFICATIONS.filter((line) => /certification|certificate|certified/i.test(line)), 5),
     education: parseEducation(educationLines)
   }

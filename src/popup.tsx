@@ -122,7 +122,7 @@ function IndexPopup() {
 
     const loadIdentity = async () => {
       try {
-        const profile = await new Promise<chrome.identity.ProfileUserInfo>((resolve, reject) => {
+        const profile = await new Promise<chrome.identity.UserInfo>((resolve, reject) => {
           chrome.identity.getProfileUserInfo((info) => {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message))
