@@ -219,7 +219,7 @@ function IndexPopup() {
         }
 
         const findLinkedinDescription = (): Element | null => {
-          const heading = Array.from(document.querySelectorAll("h1, h2, h3, h4, div, span")).find(
+          const heading = Array.from(document.querySelectorAll("h1, h2, h3, h4")).find(
             (element) => textFrom(element).toLowerCase() === "about the job"
           )
 

@@ -10,9 +10,10 @@ let lastUrl = window.location.href
 let selectorCleanup: (() => void) | null = null
 
 const publishJobData = () => {
+  const isLinkedinJobsPage = window.location.href.includes("linkedin.com/jobs")
   const payload = extractJob(
     { document, url: window.location.href, source: "active-tab" },
-    [linkedinExtractor, genericExtractor]
+    isLinkedinJobsPage ? [linkedinExtractor] : [genericExtractor]
   )
 
   if (!payload) {

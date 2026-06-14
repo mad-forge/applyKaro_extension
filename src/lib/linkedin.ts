@@ -9,7 +9,7 @@ import {
 } from "./extraction"
 
 const findLinkedinDescription = (documentRef: Document): Element | null => {
-  const heading = Array.from(documentRef.querySelectorAll("h1, h2, h3, h4, div, span")).find(
+  const heading = Array.from(documentRef.querySelectorAll("h1, h2, h3, h4")).find(
     (element) => element.textContent?.replace(/\s+/g, " ").trim().toLowerCase() === "about the job"
   )
 
