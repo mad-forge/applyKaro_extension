@@ -1,4 +1,4 @@
-import { extractJob, extractSelectedJob } from "~lib/extraction"
+import { extractJob, extractSelectedJob, genericExtractor } from "~lib/extraction"
 import { linkedinExtractor } from "~lib/linkedin"
 import type { RuntimeMessage } from "~lib/types"
 
@@ -12,11 +12,11 @@ let selectorCleanup: (() => void) | null = null
 const publishJobData = () => {
   const payload = extractJob(
     { document, url: window.location.href, source: "active-tab" },
-    [linkedinExtractor]
+    [linkedinExtractor, genericExtractor]
   )
 
   if (!payload) {
-    return
+    return null
   }
 
   const message: RuntimeMessage = {
@@ -27,6 +27,8 @@ const publishJobData = () => {
   chrome.runtime.sendMessage(message).catch(() => {
     // Popup/background may be unloaded; ignore runtime errors.
   })
+
+  return payload
 }
 
 const publishSelectedJobData = (element: Element) => {
@@ -63,8 +65,8 @@ const setupUrlChangeListener = () => {
 
 chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
   if (message.type === "SCRAPE_JOB_PAGE") {
-    publishJobData()
-    sendResponse({ ok: true })
+    const job = publishJobData()
+    sendResponse({ ok: Boolean(job), job })
   }
 
   if (message.type === "START_SELECTOR_MODE") {

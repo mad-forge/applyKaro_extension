@@ -22,6 +22,8 @@ export const linkedinExtractor: JobExtractor = {
     ".jobs-details__main-content h1",
     "h1.t-24.t-bold.inline",
     "h1.job-details-jobs-unified-top-card__job-title",
+    ".job-details-jobs-unified-top-card__job-title h1",
+    ".job-details-jobs-unified-top-card__job-title",
     "h1[data-test-id='job-details-jobs-unified-top-card__job-title']"
   ])
 
@@ -57,6 +59,10 @@ export const linkedinExtractor: JobExtractor = {
       ".jobs-details .jobs-description-content__text",
       ".jobs-details .jobs-box__html-content",
       ".jobs-details .jobs-description__content",
+      ".jobs-description-content__text--stretch",
+      ".jobs-description__container",
+      ".jobs-description",
+      "#job-details",
       "[data-test-id='job-details-description']"
     ]) ||
     first(documentRef, [

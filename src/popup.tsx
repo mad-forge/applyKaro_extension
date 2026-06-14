@@ -76,8 +76,24 @@ const getPreviewText = (text: string, maxLength = 150) => {
 }
 
 const isHttpUrl = (url?: string) => Boolean(url && /^https?:\/\//i.test(url))
-const isLinkedinUrl = (url?: string) => Boolean(url && /https?:\/\/(?:www\.)?linkedin\.com\//i.test(url))
-const isLinkedinJobsUrl = (url?: string) => Boolean(url && /https?:\/\/(?:www\.)?linkedin\.com\/jobs/i.test(url))
+const isLinkedinUrl = (url?: string) => {
+  try {
+    const hostname = new URL(url || "").hostname.toLowerCase()
+    return hostname === "linkedin.com" || hostname.endsWith(".linkedin.com")
+  } catch {
+    return false
+  }
+}
+const isLinkedinJobsUrl = (url?: string) => {
+  try {
+    const parsed = new URL(url || "")
+    return isLinkedinUrl(url) && /^\/jobs(?:\/|$)/i.test(parsed.pathname)
+  } catch {
+    return false
+  }
+}
+
+const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 function IndexPopup() {
   const [job, setJob] = useState<JobData | null>(null)
@@ -238,6 +254,8 @@ function IndexPopup() {
           ".jobs-details__main-content h1",
           "h1.t-24.t-bold.inline",
           "h1.job-details-jobs-unified-top-card__job-title",
+          ".job-details-jobs-unified-top-card__job-title h1",
+          ".job-details-jobs-unified-top-card__job-title",
           "h1[data-test-id='job-details-jobs-unified-top-card__job-title']"
         ])
 
@@ -271,6 +289,10 @@ function IndexPopup() {
             ".jobs-details .jobs-description-content__text",
             ".jobs-details .jobs-box__html-content",
             ".jobs-details .jobs-description__content",
+            ".jobs-description-content__text--stretch",
+            ".jobs-description__container",
+            ".jobs-description",
+            "#job-details",
             "[data-test-id='job-details-description']"
           ]) ||
           first([
@@ -335,22 +357,48 @@ function IndexPopup() {
   }
 
   const loadLinkedinJob = async (tabId: number) => {
-    try {
-      await chrome.tabs.sendMessage(tabId, { type: "SCRAPE_JOB_PAGE" } as RuntimeMessage)
-      return
-    } catch {
-      const fallbackJob = await scrapeLinkedinTabDirectly(tabId)
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, {
+          type: "SCRAPE_JOB_PAGE"
+        } as RuntimeMessage)
+        const detectedJob = response?.job as JobData | null | undefined
+        if (detectedJob) {
+          setJob(detectedJob)
+          return
+        }
+      } catch {
+        // The content script may not exist yet on tabs opened before the extension was loaded.
+      }
+
+      const fallbackJob = await scrapeLinkedinTabDirectly(tabId).catch(() => null)
       if (fallbackJob) {
         await publishImportedJob(fallbackJob)
         return
       }
-      throw new Error("Could not load LinkedIn job details.")
+
+      if (attempt < 2) await wait(700)
     }
+
+    throw new Error("Could not load LinkedIn job details. Refresh the job page and try again.")
   }
 
-  const loadNonLinkedinJob = async (url: string) => {
+  const loadNonLinkedinJob = async (tabId: number, url: string) => {
     setImportingUrl(true)
     try {
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, {
+          type: "SCRAPE_JOB_PAGE"
+        } as RuntimeMessage)
+        const detectedJob = response?.job as JobData | null | undefined
+        if (detectedJob) {
+          setJob(detectedJob)
+          return
+        }
+      } catch {
+        // Fall back to importing the URL for tabs that predate this extension load.
+      }
+
       const importedJob = await fetchJobFromUrl(url)
       await publishImportedJob(importedJob)
     } finally {
@@ -392,7 +440,7 @@ function IndexPopup() {
         } else if (isLinkedinUrl(activeUrl)) {
           setJob(null)
         } else {
-          await loadNonLinkedinJob(activeUrl)
+          await loadNonLinkedinJob(activeTab.id, activeUrl)
         }
       } catch (e) {
         setError((e as Error).message || "Could not detect this page yet. Try Paste Job URL or Selector Mode.")
@@ -524,7 +572,7 @@ function IndexPopup() {
         throw new Error("Open a LinkedIn job page to auto extract the job description.")
       } else {
         setJobUrl(activeUrl)
-        await loadNonLinkedinJob(activeUrl)
+        await loadNonLinkedinJob(activeTab.id, activeUrl)
       }
     } catch (e) {
       setError((e as Error).message || "Could not detect this page. Try Paste Job URL or Selector Mode.")
