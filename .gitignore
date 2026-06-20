@@ -17,6 +17,7 @@ out/
 backend/.next/
 backend/out/
 backend/dist/
+backend/data/
 
 # =========================
 # Caches / tooling
