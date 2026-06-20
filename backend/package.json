@@ -8,6 +8,7 @@
     "start": "NODE_TLS_REJECT_UNAUTHORIZED=0 next start"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.53.0",
     "@types/pdf-parse": "^1.1.5",
     "handlebars": "^4.7.9",
