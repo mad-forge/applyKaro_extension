@@ -10,7 +10,7 @@ const JSON_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const DB_DIR = path.join(process.cwd(), 'data');
+const DB_DIR = process.env.VERCEL ? path.join('/tmp', 'applykro-data') : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'user-resumes.json');
 const SUPABASE_TABLE = process.env.SUPABASE_USER_RESUMES_TABLE || 'user_resume_preferences';
 
