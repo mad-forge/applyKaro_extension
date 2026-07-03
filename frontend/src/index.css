@@ -538,6 +538,74 @@ textarea:focus-visible,
   font-weight: 800;
 }
 
+/* Score improvement (Result step) */
+
+.score-improvement-card {
+  border-color: var(--color-primary-200);
+  background: linear-gradient(180deg, var(--color-primary-50) 0%, var(--color-surface) 120px);
+}
+
+.score-compare {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.score-compare-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.score-compare-item p {
+  margin: 0;
+  color: var(--color-ink-500);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.score-badge.is-before {
+  background: conic-gradient(var(--color-ink-300) calc(var(--score) * 1%), var(--color-border) 0);
+}
+
+.score-badge.is-before span {
+  color: var(--color-ink-500);
+}
+
+.score-badge.is-after {
+  background: conic-gradient(#1ea364 calc(var(--score) * 1%), var(--color-border) 0);
+}
+
+.score-badge.is-after span {
+  color: #0f7a49;
+}
+
+.score-compare-arrow {
+  color: var(--color-ink-300);
+}
+
+.score-delta {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.score-delta.is-positive {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.score-delta.is-negative {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
 .report-group {
   margin-top: 12px;
 }

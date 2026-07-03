@@ -7,6 +7,7 @@ import ResumeUploadCard from './components/ResumeUploadCard.jsx'
 import AtsReportCard from './components/AtsReportCard.jsx'
 import KeywordsCard from './components/KeywordsCard.jsx'
 import ChangesCard from './components/ChangesCard.jsx'
+import ScoreImprovementCard from './components/ScoreImprovementCard.jsx'
 import ActionFooter from './components/ActionFooter.jsx'
 
 const API_BASE_URL = 'http://localhost:3000/api'
@@ -108,6 +109,7 @@ function App() {
   const [keywordsData, setKeywordsData] = useState(null)
   const [atsReport, setAtsReport] = useState(null)
   const [resumeChanges, setResumeChanges] = useState(null)
+  const [scoreImprovement, setScoreImprovement] = useState(null)
   const [tailoredData, setTailoredData] = useState(null)
   const [pdfBlobUrl, setPdfBlobUrl] = useState('')
   const [resultMessage, setResultMessage] = useState('')
@@ -392,6 +394,11 @@ function App() {
     })
     setKeywordsData(result.addedKeywords || [])
     setResumeChanges(result.resumeChanges)
+    setScoreImprovement(
+      typeof result.tailoredAtsScore?.score === 'number'
+        ? { before: result.atsScore.score, after: result.tailoredAtsScore.score }
+        : null,
+    )
     setTailoredData(data)
     setResultMessage('Tailored resume ready. Generating PDF...')
     advanceTo(4)
@@ -459,6 +466,7 @@ function App() {
     setIsProcessing(true)
     setKeywordsData(null)
     setResumeChanges(null)
+    setScoreImprovement(null)
     resetGeneratedPdf()
     setResultMessage('Starting tailoring job...')
 
@@ -495,6 +503,7 @@ function App() {
     setAtsReport(null)
     setResumeChanges(null)
     setKeywordsData(null)
+    setScoreImprovement(null)
     resetGeneratedPdf()
     setResultMessage('')
     setStep(1)
@@ -539,6 +548,7 @@ function App() {
 
       {step === 4 && (
         <>
+          <ScoreImprovementCard scoreImprovement={scoreImprovement} />
           <KeywordsCard keywordsData={keywordsData} />
           <ChangesCard resumeChanges={resumeChanges} />
         </>
