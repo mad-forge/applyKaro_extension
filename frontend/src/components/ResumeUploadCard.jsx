@@ -18,9 +18,13 @@ export default function ResumeUploadCard({ resumeFile, resumeSyncStatus, savedRe
         <div className="file-picker-icon">
           <Upload size={15} strokeWidth={2.25} />
         </div>
-        <span className="file-picker-label">{resumeFile ? 'Replace PDF' : 'Choose PDF'}</span>
-        <strong className="file-picker-name">{resumeFile?.name || 'No resume selected'}</strong>
-        <input type="file" accept=".pdf,application/pdf" onChange={onFileChange} />
+        <span className="file-picker-label">{resumeFile ? 'Replace file' : 'Choose file'}</span>
+        <strong className="file-picker-name">{resumeFile?.name || 'No resume selected (PDF or DOCX)'}</strong>
+        <input
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={onFileChange}
+        />
       </label>
       <div className="resume-meta-row">
         <span>{resumeSyncStatus || 'Your selected resume will be remembered in this browser.'}</span>

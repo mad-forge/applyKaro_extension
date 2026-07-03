@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAtsReportDeep } from '@/lib/ats/ats-service';
-import { extractPdfText } from '@/lib/resume/pdf-text';
+import { extractResumeText } from '@/lib/resume/pdf-text';
 import { createRateLimiter, rateLimitHeaders } from '@/lib/http/rate-limit';
 import { RequestValidationError, validateTailorInput } from '@/lib/http/request-validation';
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const { jd, resume } = validateTailorInput(formData.get('jd'), formData.get('resume'));
 
-    const resumeText = await extractPdfText(resume);
+    const resumeText = await extractResumeText(resume);
     const report = await createAtsReportDeep(resumeText, jd);
 
     return NextResponse.json(report, {
