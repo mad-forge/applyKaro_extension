@@ -15,6 +15,10 @@ Font.register({
   ],
 })
 
+// No hyphenation: broken URLs/emails and stray hyphens hurt both looks
+// and ATS text extraction. Lines still justify via word spacing.
+Font.registerHyphenationCallback((word) => [word])
+
 // Layout mirrors the reference LaTeX template: a4paper, 10pt,
 // margins top/bottom 0.3in left/right 0.4in, tight list spacing, and
 // content that flows freely instead of jumping whole blocks to the
@@ -42,6 +46,10 @@ const styles = StyleSheet.create({
   contact: {
     fontSize: 9.5,
     lineHeight: 1.35,
+  },
+  contactLabel: {
+    fontFamily: 'CMU Serif',
+    fontWeight: 'bold',
   },
   section: {
     marginTop: 5,
@@ -131,9 +139,30 @@ const styles = StyleSheet.create({
   },
 })
 
-const formatContact = (contactStr) => {
-  if (!contactStr) return ''
-  return contactStr.split('\n').filter(Boolean).join('  |  ')
+// Renders "Label: value" contact segments with bold labels, joined by pipes.
+// Children stay flat (strings + bold label Texts) so line breaking still
+// happens at spaces; nesting whole segments makes them unbreakable chunks.
+const ContactLine = ({ contact }) => {
+  const segments = (contact || '')
+    .split(/\n|\|/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+
+  const children = []
+  segments.forEach((segment, index) => {
+    if (index > 0) children.push(' | ')
+    const labeled = segment.match(/^([A-Za-z][A-Za-z ]{1,24}):\s*(.+)$/)
+    if (labeled) {
+      children.push(
+        <Text key={`label-${segment}-${index}`} style={styles.contactLabel}>{labeled[1]}: </Text>,
+        labeled[2],
+      )
+    } else {
+      children.push(segment)
+    }
+  })
+
+  return <Text style={styles.contact}>{children}</Text>
 }
 
 const Bullets = ({ bullets }) => (
@@ -201,7 +230,7 @@ export const ResumePDF = ({ data }) => (
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.name}>{data.name || 'Candidate Name'}</Text>
-        <Text style={styles.contact}>{formatContact(data.contact)}</Text>
+        <ContactLine contact={data.contact} />
       </View>
 
       {data.summary && (
