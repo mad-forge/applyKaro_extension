@@ -1,10 +1,28 @@
-import { SKILL_TAXONOMY } from './taxonomy';
 import { containsAlias, findEvidence, normalizeText, unique } from './text';
-import { analyzeJobDescription } from './jd-analyzer';
-import type { AtsReport, GapAnalysis, JdRequirement, KeywordAnalysis, SkillMatch } from './types';
+import { analyzeJobDescriptionWithTaxonomy } from './jd-analyzer';
+import { analyzeJobDescriptionDeep } from './jd-deep-analyzer';
+import type {
+  AtsReport,
+  GapAnalysis,
+  JdAnalysis,
+  JdRequirement,
+  KeywordAnalysis,
+  SkillMatch,
+  TaxonomyEntry,
+} from './types';
+
+const PRIORITY_WEIGHTS = { critical: 3, important: 2, 'nice-to-have': 1 } as const;
 
 function ratio(matched: number, total: number) {
   return total === 0 ? 100 : Math.round((matched / total) * 100);
+}
+
+function requirementMatcher(requirement: JdRequirement): TaxonomyEntry {
+  return {
+    canonical: requirement.name,
+    aliases: unique([requirement.name.toLowerCase(), ...requirement.aliases]),
+    category: requirement.category,
+  };
 }
 
 function hasEducationMatch(resume: string, requirements: string[]) {
@@ -26,12 +44,23 @@ function hasExperienceMatch(resume: string, requirements: string[]) {
 }
 
 function keywordAnalysis(requirements: JdRequirement[], resume: string): KeywordAnalysis {
-  const matched = requirements.filter((requirement) => {
-    const entry = SKILL_TAXONOMY.find((item) => item.canonical === requirement.name);
-    return entry ? containsAlias(resume, entry) : false;
-  }).map((requirement) => requirement.name);
-  const missing = requirements.filter((requirement) => !matched.includes(requirement.name)).map((item) => item.name);
+  const matched = requirements
+    .filter((requirement) => containsAlias(resume, requirementMatcher(requirement)))
+    .map((requirement) => requirement.name);
+  const missing = requirements
+    .filter((requirement) => !matched.includes(requirement.name))
+    .map((item) => item.name);
   return { matched: unique(matched), missing: unique(missing) };
+}
+
+function atsKeywordCoverage(atsKeywords: string[], resume: string) {
+  if (atsKeywords.length === 0) return 100;
+  const normalizedResume = ` ${normalizeText(resume)} `;
+  const matched = atsKeywords.filter((keyword) => {
+    const normalizedKeyword = normalizeText(keyword);
+    return normalizedKeyword && normalizedResume.includes(` ${normalizedKeyword} `);
+  });
+  return ratio(matched.length, atsKeywords.length);
 }
 
 function gapAnalysis(requirements: JdRequirement[], resume: string): GapAnalysis {
@@ -40,9 +69,8 @@ function gapAnalysis(requirements: JdRequirement[], resume: string): GapAnalysis
   const capabilityGaps = [];
 
   for (const requirement of requirements) {
-    const entry = SKILL_TAXONOMY.find((item) => item.canonical === requirement.name);
-    if (!entry) continue;
-    const evidence = findEvidence(resume, entry);
+    const matcher = requirementMatcher(requirement);
+    const evidence = findEvidence(resume, matcher);
     if (!evidence) {
       capabilityGaps.push({
         term: requirement.name,
@@ -71,37 +99,43 @@ function gapAnalysis(requirements: JdRequirement[], resume: string): GapAnalysis
   return { visibilityGaps, wordingGaps, capabilityGaps };
 }
 
-export function createAtsReport(resumeText: string, jd: string): AtsReport {
-  const jdAnalysis = analyzeJobDescription(jd);
+export function createAtsReportFromAnalysis(resumeText: string, jdAnalysis: JdAnalysis): AtsReport {
   const keywordResult = keywordAnalysis(jdAnalysis.requirements, resumeText);
+  const matchedNames = new Set(keywordResult.matched);
   const matchedSkills: SkillMatch[] = jdAnalysis.requirements
-    .filter((requirement) => keywordResult.matched.includes(requirement.name))
-    .map((requirement) => {
-      const entry = SKILL_TAXONOMY.find((item) => item.canonical === requirement.name)!;
-      return {
-        skill: requirement.name,
-        category: requirement.category,
-        requirementLevel: requirement.level,
-        resumeEvidence: findEvidence(resumeText, entry),
-      };
-    });
-  const missingSkills = jdAnalysis.requirements.filter((item) => keywordResult.missing.includes(item.name));
+    .filter((requirement) => matchedNames.has(requirement.name))
+    .map((requirement) => ({
+      skill: requirement.name,
+      category: requirement.category,
+      requirementLevel: requirement.level,
+      priority: requirement.priority,
+      resumeEvidence: findEvidence(resumeText, requirementMatcher(requirement)),
+    }));
+  const missingSkills = jdAnalysis.requirements.filter((item) => !matchedNames.has(item.name));
 
   const required = jdAnalysis.requirements.filter((item) => item.level === 'required');
   const preferred = jdAnalysis.requirements.filter((item) => item.level === 'preferred');
-  const requiredMatched = required.filter((item) => keywordResult.matched.includes(item.name)).length;
-  const preferredMatched = preferred.filter((item) => keywordResult.matched.includes(item.name)).length;
+  const requiredMatched = required.filter((item) => matchedNames.has(item.name)).length;
+  const preferredMatched = preferred.filter((item) => matchedNames.has(item.name)).length;
+
+  const totalWeight = jdAnalysis.requirements.reduce((sum, item) => sum + PRIORITY_WEIGHTS[item.priority], 0);
+  const matchedWeight = jdAnalysis.requirements
+    .filter((item) => matchedNames.has(item.name))
+    .reduce((sum, item) => sum + PRIORITY_WEIGHTS[item.priority], 0);
+
   const breakdown = {
     requiredSkills: ratio(requiredMatched, required.length),
     preferredSkills: ratio(preferredMatched, preferred.length),
-    keywordCoverage: ratio(keywordResult.matched.length, jdAnalysis.requirements.length),
+    keywordCoverage: totalWeight === 0 ? 100 : Math.round((matchedWeight / totalWeight) * 100),
+    atsKeywords: atsKeywordCoverage(jdAnalysis.atsKeywords, resumeText),
     education: hasEducationMatch(resumeText, jdAnalysis.educationRequirements),
     experience: hasExperienceMatch(resumeText, jdAnalysis.experienceRequirements),
   };
   const score = Math.round(
-    breakdown.requiredSkills * 0.45
-    + breakdown.preferredSkills * 0.10
+    breakdown.requiredSkills * 0.35
+    + breakdown.preferredSkills * 0.05
     + breakdown.keywordCoverage * 0.25
+    + breakdown.atsKeywords * 0.15
     + breakdown.education * 0.10
     + breakdown.experience * 0.10,
   );
@@ -119,4 +153,13 @@ export function createAtsReport(resumeText: string, jd: string): AtsReport {
     gapAnalysis: gapAnalysis(jdAnalysis.requirements, resumeText),
     keywordAnalysis: keywordResult,
   };
+}
+
+export async function createAtsReportDeep(resumeText: string, jd: string): Promise<AtsReport> {
+  const jdAnalysis = await analyzeJobDescriptionDeep(jd);
+  return createAtsReportFromAnalysis(resumeText, jdAnalysis);
+}
+
+export function createAtsReport(resumeText: string, jd: string): AtsReport {
+  return createAtsReportFromAnalysis(resumeText, analyzeJobDescriptionWithTaxonomy(jd));
 }

@@ -9,7 +9,7 @@ function requirementLevel(line: string, fallback: RequirementLevel): Requirement
   return fallback;
 }
 
-export function analyzeJobDescription(jd: string): JdAnalysis {
+export function analyzeJobDescriptionWithTaxonomy(jd: string): JdAnalysis {
   const lines = splitIntoLines(jd);
   const requirements = new Map<string, JdRequirement>();
   let currentLevel: RequirementLevel = 'required';
@@ -27,6 +27,8 @@ export function analyzeJobDescription(jd: string): JdAnalysis {
           name: entry.canonical,
           category: entry.category,
           level,
+          priority: level === 'preferred' ? 'nice-to-have' : 'important',
+          aliases: entry.aliases,
           evidence: line,
         });
       }
@@ -43,6 +45,17 @@ export function analyzeJobDescription(jd: string): JdAnalysis {
   const all = [...requirements.values()];
 
   return {
+    roleTitle: '',
+    seniority: 'unspecified',
+    summary: '',
+    responsibilities: [],
+    qualifications: {
+      education: educationRequirements,
+      experienceYears: experienceRequirements[0] || '',
+      certifications: [],
+    },
+    atsKeywords: all.map((item) => item.name),
+    analysisSource: 'taxonomy-fallback',
     requiredSkills: all.filter((item) => item.level === 'required').map((item) => item.name),
     preferredSkills: all.filter((item) => item.level === 'preferred').map((item) => item.name),
     technologies: all.filter((item) => item.category === 'technology').map((item) => item.name),

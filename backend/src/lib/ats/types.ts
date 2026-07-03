@@ -1,5 +1,14 @@
-export type SkillCategory = 'skill' | 'technology' | 'framework' | 'tool' | 'soft-skill';
+export type SkillCategory =
+  | 'skill'
+  | 'technology'
+  | 'framework'
+  | 'tool'
+  | 'soft-skill'
+  | 'domain'
+  | 'certification';
 export type RequirementLevel = 'required' | 'preferred';
+export type RequirementPriority = 'critical' | 'important' | 'nice-to-have';
+export type JdAnalysisSource = 'ai' | 'taxonomy-fallback';
 
 export interface TaxonomyEntry {
   canonical: string;
@@ -11,10 +20,25 @@ export interface JdRequirement {
   name: string;
   category: SkillCategory;
   level: RequirementLevel;
+  priority: RequirementPriority;
+  aliases: string[];
   evidence: string;
 }
 
+export interface JdQualifications {
+  education: string[];
+  experienceYears: string;
+  certifications: string[];
+}
+
 export interface JdAnalysis {
+  roleTitle: string;
+  seniority: string;
+  summary: string;
+  responsibilities: string[];
+  qualifications: JdQualifications;
+  atsKeywords: string[];
+  analysisSource: JdAnalysisSource;
   requiredSkills: string[];
   preferredSkills: string[];
   technologies: string[];
@@ -29,6 +53,7 @@ export interface SkillMatch {
   skill: string;
   category: SkillCategory;
   requirementLevel: RequirementLevel;
+  priority: RequirementPriority;
   resumeEvidence: string;
 }
 
@@ -42,6 +67,7 @@ export interface AtsScore {
     requiredSkills: number;
     preferredSkills: number;
     keywordCoverage: number;
+    atsKeywords: number;
     education: number;
     experience: number;
   };

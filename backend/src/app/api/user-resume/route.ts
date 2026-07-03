@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
+import { createRateLimiter, rateLimitHeaders } from '@/lib/http/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -9,6 +10,9 @@ const JSON_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const rateLimit = createRateLimiter(60, 60 * 60 * 1000);
 
 const DB_DIR = process.env.VERCEL ? path.join('/tmp', 'applykro-data') : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'user-resumes.json');
@@ -145,17 +149,19 @@ async function saveSupabaseRecord(record: UserResumeRecord) {
 }
 
 function normalizeEmail(value: unknown) {
-  return String(value || '').trim().toLowerCase();
+  const email = String(value || '').trim().toLowerCase();
+  return EMAIL_PATTERN.test(email) ? email : '';
 }
 
 function validateResume(value: unknown): ResumeMetadata | null {
   if (!value || typeof value !== 'object') return null;
   const record = value as Partial<ResumeMetadata>;
-  const name = String(record.name || '').trim();
-  const type = String(record.type || 'application/pdf').trim();
+  const name = String(record.name || '').trim().slice(0, 255);
+  const type = String(record.type || 'application/pdf').trim().slice(0, 100);
   const size = Number(record.size || 0);
   const lastModified = Number(record.lastModified || Date.now());
-  if (!name || !Number.isFinite(size) || size <= 0) return null;
+  if (!name || !Number.isFinite(size) || size <= 0 || size > 100 * 1024 * 1024) return null;
+  if (!Number.isFinite(lastModified)) return null;
   return { name, type, size, lastModified };
 }
 
@@ -180,6 +186,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const limit = rateLimit(req);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { ...JSON_HEADERS, ...rateLimitHeaders(limit) } },
+      );
+    }
+
     const body = await req.json();
     const email = normalizeEmail(body?.user?.email);
     const resume = validateResume(body?.resume);
