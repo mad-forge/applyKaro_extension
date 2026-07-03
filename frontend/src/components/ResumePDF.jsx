@@ -1,77 +1,67 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
+// Layout mirrors the reference LaTeX template: a4paper, 10pt Times,
+// margins top/bottom 0.3in left/right 0.4in, tight list spacing, and
+// content that flows freely instead of jumping whole blocks to the
+// next page.
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#FFFFFF',
-    paddingTop: 34,
-    paddingBottom: 36,
-    paddingHorizontal: 44,
+    paddingVertical: 22,
+    paddingHorizontal: 29,
     fontFamily: 'Times-Roman',
-    color: '#111111',
+    color: '#000000',
     fontSize: 10,
-    lineHeight: 1.35,
+    lineHeight: 1.25,
   },
   header: {
-    marginBottom: 12,
+    marginBottom: 6,
     textAlign: 'center',
   },
   name: {
-    marginBottom: 3,
-    color: '#000000',
+    marginBottom: 2,
     fontFamily: 'Times-Bold',
-    fontSize: 24,
-    lineHeight: 1.1,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    fontSize: 25,
+    lineHeight: 1.05,
   },
   contact: {
-    color: '#333333',
-    fontSize: 9,
-    lineHeight: 1.5,
+    fontSize: 9.5,
+    lineHeight: 1.35,
   },
   section: {
-    marginTop: 9,
-    marginBottom: 2,
+    marginTop: 6,
   },
   heading: {
-    marginBottom: 5,
-    paddingBottom: 2,
-    borderBottomWidth: 0.9,
+    marginBottom: 3,
+    paddingBottom: 1.5,
+    borderBottomWidth: 0.8,
     borderBottomColor: '#000000',
-    color: '#000000',
     fontFamily: 'Times-Bold',
-    fontSize: 11.5,
+    fontSize: 12,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.4,
   },
   paragraph: {
     fontSize: 10,
-    lineHeight: 1.42,
-    color: '#1a1a1a',
+    lineHeight: 1.3,
     textAlign: 'justify',
   },
   skillGroupRow: {
-    flexDirection: 'row',
-    marginBottom: 2.5,
+    marginBottom: 1,
+  },
+  skillGroupValue: {
+    fontSize: 10,
+    lineHeight: 1.3,
   },
   skillGroupLabel: {
     fontFamily: 'Times-Bold',
-    fontSize: 10,
-    color: '#000000',
-  },
-  skillGroupValue: {
-    flex: 1,
-    fontSize: 10,
-    lineHeight: 1.4,
-    color: '#1a1a1a',
   },
   skills: {
     fontSize: 10,
-    lineHeight: 1.45,
-    color: '#1a1a1a',
+    lineHeight: 1.3,
   },
   item: {
-    marginBottom: 7,
+    marginBottom: 4,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -81,82 +71,48 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontFamily: 'Times-Bold',
     fontSize: 10.5,
-    color: '#000000',
   },
   itemSubtitle: {
-    marginTop: 0.5,
-    marginBottom: 2,
+    marginBottom: 1,
     fontFamily: 'Times-Italic',
-    color: '#222222',
     fontSize: 10,
   },
   duration: {
     flexShrink: 0,
     paddingLeft: 10,
     fontFamily: 'Times-Bold',
-    color: '#333333',
-    fontSize: 9.5,
+    fontSize: 10,
   },
   bullet: {
     flexDirection: 'row',
-    marginBottom: 1.5,
-    paddingLeft: 6,
+    marginBottom: 0.5,
+    paddingLeft: 5,
   },
   bulletMarker: {
-    width: 10,
+    width: 9,
     fontSize: 10,
-    color: '#000000',
   },
   bulletText: {
     flex: 1,
     fontSize: 10,
-    lineHeight: 1.38,
-    color: '#1a1a1a',
+    lineHeight: 1.28,
     textAlign: 'justify',
   },
   educationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: 5,
   },
-  educationMain: {
-    flexGrow: 1,
-    flexShrink: 1,
+  educationBlock: {
+    marginBottom: 3,
   },
   educationDegree: {
     fontFamily: 'Times-Bold',
     fontSize: 10.5,
-    color: '#000000',
   },
   educationInst: {
-    marginTop: 0.5,
     fontFamily: 'Times-Italic',
     fontSize: 10,
-    color: '#222222',
-  },
-  additionalRow: {
-    flexDirection: 'row',
-    marginBottom: 3,
-  },
-  additionalLabel: {
-    width: 105,
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
-    color: '#000000',
-  },
-  additionalValue: {
-    flex: 1,
-    fontSize: 10,
-    lineHeight: 1.4,
-    color: '#1a1a1a',
-  },
-  pageNumber: {
-    position: 'absolute',
-    right: 44,
-    bottom: 20,
-    color: '#888888',
-    fontSize: 8,
   },
 })
 
@@ -176,21 +132,17 @@ const Bullets = ({ bullets }) => (
   </>
 )
 
-// The section heading rides inside the first item's unbreakable block so it
-// can never be orphaned at the bottom of a page.
 const ItemsSection = ({ title, items }) => (
   <View style={styles.section}>
+    <Text style={styles.heading} minPresenceAhead={40}>{title}</Text>
     {items.map((item, index) => (
-      <View key={`${item.title}-${index}`} wrap={false}>
-        {index === 0 && <Text style={styles.heading}>{title}</Text>}
-        <View style={styles.item}>
-          <View style={styles.itemHeader}>
-            <Text style={styles.itemTitle}>{item.title}</Text>
-            {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
-          </View>
-          {item.organization && <Text style={styles.itemSubtitle}>{item.organization}</Text>}
-          <Bullets bullets={item.bullets || []} />
+      <View key={`${item.title}-${index}`} style={styles.item}>
+        <View style={styles.itemHeader} minPresenceAhead={30}>
+          <Text style={styles.itemTitle}>{item.title}</Text>
+          {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
         </View>
+        {item.organization && <Text style={styles.itemSubtitle}>{item.organization}</Text>}
+        <Bullets bullets={item.bullets || []} />
       </View>
     ))}
   </View>
@@ -214,6 +166,21 @@ const Skills = ({ data }) => {
   return <Text style={styles.skills}>{data.skills.join(' • ')}</Text>
 }
 
+// Additional-info values often carry their own "•" bullets (e.g.
+// certifications); render those as a proper list, otherwise as a
+// labeled paragraph.
+const AdditionalSection = ({ item }) => {
+  const parts = item.value.split(/\n|(?=•)/).map((part) => part.replace(/^[•\s]+/, '').trim()).filter(Boolean)
+  return (
+    <View style={styles.section}>
+      <Text style={styles.heading} minPresenceAhead={30}>{item.label}</Text>
+      {parts.length > 1
+        ? <Bullets bullets={parts} />
+        : <Text style={styles.paragraph}>{parts[0] || item.value}</Text>}
+    </View>
+  )
+}
+
 export const ResumePDF = ({ data }) => (
   <Document title={`${data.name || 'Candidate'} - Tailored Resume`}>
     <Page size="A4" style={styles.page}>
@@ -224,62 +191,44 @@ export const ResumePDF = ({ data }) => (
 
       {data.summary && (
         <View style={styles.section}>
-          <Text style={styles.heading}>Professional Summary</Text>
+          <Text style={styles.heading} minPresenceAhead={30}>Summary</Text>
           <Text style={styles.paragraph}>{data.summary}</Text>
         </View>
       )}
 
       {(data.skillGroups?.length > 0 || data.skills?.length > 0) && (
         <View style={styles.section}>
-          <Text style={styles.heading}>Technical Skills</Text>
+          <Text style={styles.heading} minPresenceAhead={30}>Skills</Text>
           <Skills data={data} />
         </View>
       )}
 
       {data.experience?.length > 0 && (
-        <ItemsSection title="Professional Experience" items={data.experience} />
+        <ItemsSection title="Experience" items={data.experience} />
       )}
 
       {data.projects?.length > 0 && (
         <ItemsSection title="Projects" items={data.projects} />
       )}
 
+      {data.additionalInformation?.map((item, index) => (
+        <AdditionalSection key={`${item.label}-${index}`} item={item} />
+      ))}
+
       {data.education?.length > 0 && (
         <View style={styles.section}>
+          <Text style={styles.heading} minPresenceAhead={40}>Education</Text>
           {data.education.map((item, index) => (
-            <View key={`${item.institution}-${index}`} wrap={false}>
-              {index === 0 && <Text style={styles.heading}>Education</Text>}
+            <View key={`${item.institution}-${index}`} style={styles.educationBlock}>
               <View style={styles.educationRow}>
-                <View style={styles.educationMain}>
-                  <Text style={styles.educationDegree}>{item.degree}</Text>
-                  <Text style={styles.educationInst}>{item.institution}</Text>
-                </View>
+                <Text style={styles.educationDegree}>{item.degree}</Text>
                 {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
               </View>
+              <Text style={styles.educationInst}>{item.institution}</Text>
             </View>
           ))}
         </View>
       )}
-
-      {data.additionalInformation?.length > 0 && (
-        <View style={styles.section}>
-          {data.additionalInformation.map((item, index) => (
-            <View key={`${item.label}-${index}`} wrap={false}>
-              {index === 0 && <Text style={styles.heading}>Additional Information</Text>}
-              <View style={styles.additionalRow}>
-                <Text style={styles.additionalLabel}>{item.label}</Text>
-                <Text style={styles.additionalValue}>{item.value}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      <Text
-        style={styles.pageNumber}
-        fixed
-        render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-      />
     </Page>
   </Document>
 )
