@@ -176,7 +176,15 @@ function validateAdditionalItem(source: string, item: AdditionalItem, path: stri
   if (!sourceContainsParts(source, item.value)) errors.push(`${path}.value "${item.value}" was changed or invented`);
 }
 
-export function validateTailoredData(source: string, data: ResumeData) {
+export interface ValidateOptions {
+  // The extraction path trusts the extractor for section coverage; forcing
+  // sections from raw source lines mangles skills-category labels like
+  // "Languages: JavaScript, Java" into duplicate additional-info entries.
+  enforceRequiredSections?: boolean;
+}
+
+export function validateTailoredData(source: string, data: ResumeData, options: ValidateOptions = {}) {
+  const { enforceRequiredSections = true } = options;
   const errors: string[] = [];
 
   if (!sourceContains(source, data.name)) errors.push('name was changed or invented');
@@ -193,10 +201,12 @@ export function validateTailoredData(source: string, data: ResumeData) {
   for (const [index, item] of (data.additionalInformation || []).entries()) {
     validateAdditionalItem(source, item, `additionalInformation[${index}]`, errors);
   }
-  for (const section of REQUIRED_ADDITIONAL_SECTIONS) {
-    const sourceHasSection = normalizeForEvidence(source).includes(section);
-    const outputHasSection = data.additionalInformation.some((item) => normalizeForEvidence(item.label).includes(section));
-    if (sourceHasSection && !outputHasSection) errors.push(`additionalInformation is missing the source "${section}" section`);
+  if (enforceRequiredSections) {
+    for (const section of REQUIRED_ADDITIONAL_SECTIONS) {
+      const sourceHasSection = normalizeForEvidence(source).includes(section);
+      const outputHasSection = data.additionalInformation.some((item) => normalizeForEvidence(item.label).includes(section));
+      if (sourceHasSection && !outputHasSection) errors.push(`additionalInformation is missing the source "${section}" section`);
+    }
   }
 
   return errors;

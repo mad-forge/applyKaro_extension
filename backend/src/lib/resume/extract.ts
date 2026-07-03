@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { ResumeData } from '@/components/ResumePDF';
 import { chatCompletion } from '@/lib/ai/openrouter';
 import { parseModelResume } from './parse-model-resume';
-import { ensureRequiredAdditionalSections, validateTailoredData } from './factual-validation';
+import { validateTailoredData } from './factual-validation';
 
 const EXTRACTION_TIMEOUT_MS = 60_000;
 const EXTRACTION_MAX_TOKENS = 6_000;
@@ -90,12 +90,12 @@ export async function extractResumeFacts(resumeText: string): Promise<ExtractedR
   const cached = readCache(key);
   if (cached) return cached;
 
-  let facts = ensureRequiredAdditionalSections(resumeText, await requestExtraction(resumeText));
-  let errors = validateTailoredData(resumeText, facts);
+  let facts = await requestExtraction(resumeText);
+  let errors = validateTailoredData(resumeText, facts, { enforceRequiredSections: false });
 
   if (errors.length > 0) {
-    facts = ensureRequiredAdditionalSections(resumeText, await requestExtraction(resumeText, errors));
-    errors = validateTailoredData(resumeText, facts);
+    facts = await requestExtraction(resumeText, errors);
+    errors = validateTailoredData(resumeText, facts, { enforceRequiredSections: false });
   }
 
   if (errors.length > 0) {
