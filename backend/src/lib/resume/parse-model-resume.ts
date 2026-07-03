@@ -33,11 +33,19 @@ export function parseModelResume(content: unknown): ResumeData {
     sourceEvidence: stringValue(item.sourceEvidence),
   }));
 
+  const skillGroups = recordArray(parsed.skillGroups)
+    .map((group) => ({
+      label: stringValue(group.label),
+      skills: stringArray(group.skills),
+    }))
+    .filter((group) => group.label && group.skills.length > 0);
+
   return {
     name: stringValue(parsed.name),
     contact: stringValue(parsed.contact),
     summary: stringValue(parsed.summary),
     skills: stringArray(parsed.skills),
+    skillGroups,
     experience: resumeItems(parsed.experience),
     projects: resumeItems(parsed.projects),
     education: educationItems(parsed.education),

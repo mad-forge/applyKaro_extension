@@ -137,7 +137,8 @@ function normalizeSkill(value: string) {
 }
 
 function resolveSkills(sourceSkills: string[], optimizedSkills: string[], sourceText: string) {
-  if (optimizedSkills.length === 0) return sourceSkills;
+  const renames = new Map<string, string>();
+  if (optimizedSkills.length === 0) return { skills: sourceSkills, renames };
 
   const remaining = new Map(sourceSkills.map((skill) => [normalizeSkill(skill), skill]));
   const resolved: string[] = [];
@@ -146,14 +147,35 @@ function resolveSkills(sourceSkills: string[], optimizedSkills: string[], source
     const key = normalizeSkill(skill);
     if (remaining.has(key)) {
       // Same skill; allow the JD-terminology rewrite as long as the source supports it.
-      resolved.push(sourceContains(sourceText, skill) ? skill : remaining.get(key)!);
+      const chosen = sourceContains(sourceText, skill) ? skill : remaining.get(key)!;
+      resolved.push(chosen);
+      renames.set(key, chosen);
       remaining.delete(key);
     }
   }
 
   // Anything the model dropped or renamed beyond recognition stays, in source order.
   resolved.push(...remaining.values());
-  return resolved;
+  return { skills: resolved, renames };
+}
+
+function resolveSkillGroups(
+  facts: ExtractedResume,
+  orderedSkills: string[],
+  renames: Map<string, string>,
+) {
+  if (!facts.skillGroups?.length) return undefined;
+
+  const order = new Map(orderedSkills.map((skill, index) => [normalizeSkill(skill), index]));
+  return facts.skillGroups.map((group) => ({
+    label: group.label,
+    skills: [...group.skills]
+      .map((skill) => renames.get(normalizeSkill(skill)) || skill)
+      .sort((left, right) => (
+        (order.get(normalizeSkill(left)) ?? Number.MAX_SAFE_INTEGER)
+        - (order.get(normalizeSkill(right)) ?? Number.MAX_SAFE_INTEGER)
+      )),
+  }));
 }
 
 function assembleItems(
@@ -174,6 +196,7 @@ export function assembleResumeData(
   sourceText: string,
 ): ResumeData {
   const optimizedById = new Map(optimized.items.map((item) => [item.id, item.bullets]));
+  const { skills, renames } = resolveSkills(facts.skills, optimized.skills, sourceText);
 
   const assembled: ResumeData = {
     // Locked facts: copied from extraction, never from the optimizer's output.
@@ -185,7 +208,8 @@ export function assembleResumeData(
     projects: assembleItems(facts.projects, 'proj', optimizedById, MAX_PROJECT_BULLETS),
     // Optimized content:
     summary: optimized.summary,
-    skills: resolveSkills(facts.skills, optimized.skills, sourceText),
+    skills,
+    skillGroups: resolveSkillGroups(facts, skills, renames),
     addedKeywords: [],
   };
 

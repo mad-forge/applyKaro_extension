@@ -3,145 +3,159 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#FFFFFF',
-    paddingTop: 35,
-    paddingBottom: 35,
-    paddingHorizontal: 45,
-    fontFamily: 'Helvetica',
+    paddingTop: 34,
+    paddingBottom: 36,
+    paddingHorizontal: 44,
+    fontFamily: 'Times-Roman',
     color: '#111111',
-    fontSize: 9.5,
-    lineHeight: 1.4,
+    fontSize: 10,
+    lineHeight: 1.35,
   },
   header: {
-    marginBottom: 15,
+    marginBottom: 12,
     textAlign: 'center',
   },
   name: {
-    marginBottom: 4,
+    marginBottom: 3,
     color: '#000000',
-    fontSize: 22,
-    fontWeight: 'bold',
-    lineHeight: 1.15,
-    letterSpacing: 1,
+    fontFamily: 'Times-Bold',
+    fontSize: 24,
+    lineHeight: 1.1,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   contact: {
-    color: '#555555',
-    fontSize: 8.5,
+    color: '#333333',
+    fontSize: 9,
     lineHeight: 1.5,
   },
   section: {
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 9,
+    marginBottom: 2,
   },
   heading: {
-    marginBottom: 6,
-    paddingBottom: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#DDDDDD',
+    marginBottom: 5,
+    paddingBottom: 2,
+    borderBottomWidth: 0.9,
+    borderBottomColor: '#000000',
     color: '#000000',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: 'Times-Bold',
+    fontSize: 11.5,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   paragraph: {
-    fontSize: 9.5,
-    lineHeight: 1.5,
-    color: '#333333',
+    fontSize: 10,
+    lineHeight: 1.42,
+    color: '#1a1a1a',
+    textAlign: 'justify',
+  },
+  skillGroupRow: {
+    flexDirection: 'row',
+    marginBottom: 2.5,
+  },
+  skillGroupLabel: {
+    fontFamily: 'Times-Bold',
+    fontSize: 10,
+    color: '#000000',
+  },
+  skillGroupValue: {
+    flex: 1,
+    fontSize: 10,
+    lineHeight: 1.4,
+    color: '#1a1a1a',
   },
   skills: {
-    fontSize: 9.5,
-    lineHeight: 1.5,
-    color: '#333333',
+    fontSize: 10,
+    lineHeight: 1.45,
+    color: '#1a1a1a',
   },
   item: {
-    marginBottom: 8,
+    marginBottom: 7,
   },
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: 2,
-  },
-  itemHeaderMain: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    flexGrow: 1,
-    flexShrink: 1,
-    paddingRight: 10,
   },
   itemTitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Times-Bold',
+    fontSize: 10.5,
     color: '#000000',
   },
   itemSubtitle: {
-    color: '#444444',
-    fontSize: 9.5,
-    fontStyle: 'italic',
+    marginTop: 0.5,
+    marginBottom: 2,
+    fontFamily: 'Times-Italic',
+    color: '#222222',
+    fontSize: 10,
   },
   duration: {
     flexShrink: 0,
-    color: '#666666',
-    fontSize: 9,
-    fontWeight: 'bold',
+    paddingLeft: 10,
+    fontFamily: 'Times-Bold',
+    color: '#333333',
+    fontSize: 9.5,
   },
   bullet: {
     flexDirection: 'row',
-    marginBottom: 2,
-    paddingLeft: 4,
+    marginBottom: 1.5,
+    paddingLeft: 6,
   },
   bulletMarker: {
     width: 10,
-    fontSize: 9.5,
-    color: '#555555',
+    fontSize: 10,
+    color: '#000000',
   },
   bulletText: {
     flex: 1,
-    fontSize: 9.5,
-    lineHeight: 1.45,
-    color: '#333333',
+    fontSize: 10,
+    lineHeight: 1.38,
+    color: '#1a1a1a',
+    textAlign: 'justify',
   },
   educationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: 4,
+    marginBottom: 5,
   },
   educationMain: {
     flexGrow: 1,
     flexShrink: 1,
   },
   educationDegree: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Times-Bold',
+    fontSize: 10.5,
     color: '#000000',
   },
   educationInst: {
-    fontSize: 9.5,
-    color: '#444444',
-    marginTop: 1,
+    marginTop: 0.5,
+    fontFamily: 'Times-Italic',
+    fontSize: 10,
+    color: '#222222',
   },
   additionalRow: {
     flexDirection: 'row',
     marginBottom: 3,
   },
   additionalLabel: {
-    width: 100,
-    fontWeight: 'bold',
-    fontSize: 9.5,
+    width: 105,
+    fontFamily: 'Times-Bold',
+    fontSize: 10,
     color: '#000000',
   },
   additionalValue: {
     flex: 1,
-    fontSize: 9.5,
-    color: '#333333',
+    fontSize: 10,
+    lineHeight: 1.4,
+    color: '#1a1a1a',
   },
   pageNumber: {
     position: 'absolute',
-    right: 45,
+    right: 44,
     bottom: 20,
-    color: '#999999',
+    color: '#888888',
     fontSize: 8,
   },
 })
@@ -162,25 +176,43 @@ const Bullets = ({ bullets }) => (
   </>
 )
 
-const ResumeItems = ({ items }) => (
-  <>
+// The section heading rides inside the first item's unbreakable block so it
+// can never be orphaned at the bottom of a page.
+const ItemsSection = ({ title, items }) => (
+  <View style={styles.section}>
     {items.map((item, index) => (
-      <View key={`${item.title}-${index}`} style={styles.item} wrap={false}>
-        <View style={styles.itemHeader}>
-          <View style={styles.itemHeaderMain}>
-            <Text style={styles.itemTitle}>
-              {item.title}
-              {item.organization ? <Text style={{ fontWeight: 'normal' }}> | </Text> : ''}
-              {item.organization ? <Text style={styles.itemSubtitle}>{item.organization}</Text> : ''}
-            </Text>
+      <View key={`${item.title}-${index}`} wrap={false}>
+        {index === 0 && <Text style={styles.heading}>{title}</Text>}
+        <View style={styles.item}>
+          <View style={styles.itemHeader}>
+            <Text style={styles.itemTitle}>{item.title}</Text>
+            {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
           </View>
-          {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
+          {item.organization && <Text style={styles.itemSubtitle}>{item.organization}</Text>}
+          <Bullets bullets={item.bullets || []} />
         </View>
-        <Bullets bullets={item.bullets || []} />
       </View>
     ))}
-  </>
+  </View>
 )
+
+const Skills = ({ data }) => {
+  if (data.skillGroups?.length > 0) {
+    return (
+      <>
+        {data.skillGroups.map((group, index) => (
+          <View key={`${group.label}-${index}`} style={styles.skillGroupRow}>
+            <Text style={styles.skillGroupValue}>
+              <Text style={styles.skillGroupLabel}>{group.label.replace(/:$/, '')}: </Text>
+              {group.skills.join(', ')}
+            </Text>
+          </View>
+        ))}
+      </>
+    )
+  }
+  return <Text style={styles.skills}>{data.skills.join(' • ')}</Text>
+}
 
 export const ResumePDF = ({ data }) => (
   <Document title={`${data.name || 'Candidate'} - Tailored Resume`}>
@@ -197,37 +229,33 @@ export const ResumePDF = ({ data }) => (
         </View>
       )}
 
-      {data.skills?.length > 0 && (
+      {(data.skillGroups?.length > 0 || data.skills?.length > 0) && (
         <View style={styles.section}>
           <Text style={styles.heading}>Technical Skills</Text>
-          <Text style={styles.skills}>{data.skills.join(' • ')}</Text>
+          <Skills data={data} />
         </View>
       )}
 
       {data.experience?.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.heading} minPresenceAhead={45}>Professional Experience</Text>
-          <ResumeItems items={data.experience} />
-        </View>
+        <ItemsSection title="Professional Experience" items={data.experience} />
       )}
 
       {data.projects?.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.heading} minPresenceAhead={45}>Projects</Text>
-          <ResumeItems items={data.projects} />
-        </View>
+        <ItemsSection title="Projects" items={data.projects} />
       )}
 
       {data.education?.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.heading} minPresenceAhead={35}>Education</Text>
           {data.education.map((item, index) => (
-            <View key={`${item.institution}-${index}`} style={styles.educationRow} wrap={false}>
-              <View style={styles.educationMain}>
-                <Text style={styles.educationDegree}>{item.degree}</Text>
-                <Text style={styles.educationInst}>{item.institution}</Text>
+            <View key={`${item.institution}-${index}`} wrap={false}>
+              {index === 0 && <Text style={styles.heading}>Education</Text>}
+              <View style={styles.educationRow}>
+                <View style={styles.educationMain}>
+                  <Text style={styles.educationDegree}>{item.degree}</Text>
+                  <Text style={styles.educationInst}>{item.institution}</Text>
+                </View>
+                {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
               </View>
-              {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
             </View>
           ))}
         </View>
@@ -235,11 +263,13 @@ export const ResumePDF = ({ data }) => (
 
       {data.additionalInformation?.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.heading} minPresenceAhead={30}>Additional Information</Text>
           {data.additionalInformation.map((item, index) => (
-            <View key={`${item.label}-${index}`} style={styles.additionalRow} wrap={false}>
-              <Text style={styles.additionalLabel}>{item.label}</Text>
-              <Text style={styles.additionalValue}>{item.value}</Text>
+            <View key={`${item.label}-${index}`} wrap={false}>
+              {index === 0 && <Text style={styles.heading}>Additional Information</Text>}
+              <View style={styles.additionalRow}>
+                <Text style={styles.additionalLabel}>{item.label}</Text>
+                <Text style={styles.additionalValue}>{item.value}</Text>
+              </View>
             </View>
           ))}
         </View>

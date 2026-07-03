@@ -44,6 +44,10 @@ const facts: ExtractedResume = {
     sourceEvidence: 'B.Tech Computer Science, IIT Delhi, 2018 - 2022',
   }],
   additionalInformation: [{ label: 'Languages', value: 'Hindi, English', sourceEvidence: 'Languages: Hindi, English' }],
+  skillGroups: [
+    { label: 'Languages', skills: ['JavaScript'] },
+    { label: 'Frontend', skills: ['ReactJS', 'Node.js'] },
+  ],
   addedKeywords: [],
 };
 
@@ -105,6 +109,14 @@ describe('assembleResumeData', () => {
 
     expect(keywords).toContain('React.js');
     expect(keywords).not.toContain('Kubernetes');
+  });
+
+  it('preserves skill group labels and applies JD-terminology renames inside groups', () => {
+    const result = assembleResumeData(facts, optimized, sourceText);
+
+    expect(result.skillGroups?.map((group) => group.label)).toEqual(['Languages', 'Frontend']);
+    expect(result.skillGroups?.[1].skills).toContain('React.js');
+    expect(result.skillGroups?.[1].skills).not.toContain('Kubernetes');
   });
 
   it('caps bullets at 7 for experience and 3 for projects', () => {

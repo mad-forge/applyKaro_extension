@@ -168,11 +168,17 @@ export interface AdditionalItem {
   sourceEvidence: string;
 }
 
+export interface SkillGroup {
+  label: string;
+  skills: string[];
+}
+
 export interface ResumeData {
   name: string;
   contact: string;
   summary: string;
   skills: string[];
+  skillGroups?: SkillGroup[];
   experience: ResumeItem[];
   projects: ResumeItem[];
   education: EducationItem[];
