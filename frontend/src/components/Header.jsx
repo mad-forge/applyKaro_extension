@@ -1,10 +1,11 @@
+import brandLogo from '../assets/brand-logo.png'
 import { Sparkles, UserRound } from 'lucide-react'
 
 export default function Header({ userEmail }) {
   return (
     <header className="app-header">
       <div className="app-mark">
-        <Sparkles size={20} strokeWidth={2.25} />
+        <img src={brandLogo} alt="Brand Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </div>
       <div className="app-header-text">
         <p className="eyebrow">

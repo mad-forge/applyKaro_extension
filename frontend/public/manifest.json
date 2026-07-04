@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "Tailor your resume based on Job Descriptions instantly using AI.",
   "action": {
-    "default_popup": "index.html",
     "default_title": "AI Resume Tailor",
     "default_icon": {
       "16": "icon-16.png",
@@ -12,6 +11,9 @@
       "48": "icon-48.png",
       "128": "icon-128.png"
     }
+  },
+  "side_panel": {
+    "default_path": "index.html"
   },
   "icons": {
     "16": "icon-16.png",
@@ -25,7 +27,8 @@
     "identity.email",
     "unlimitedStorage",
     "storage",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   "host_permissions": [
     "*://*.linkedin.com/*",

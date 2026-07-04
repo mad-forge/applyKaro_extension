@@ -94,6 +94,68 @@ const resumeMetadataFromFile = (file) => ({
   lastModified: file.lastModified,
 })
 
+// Runs inside the target tab via chrome.scripting.executeScript. Must be
+// fully self-contained (no references to module scope) since only its source
+// is injected. Kept in sync with content.js as a fresh-injection fallback that
+// survives the content script being orphaned after an extension reload.
+function extractJobDescriptionInPage() {
+  const normalize = (text) => {
+    const lines = String(text || '')
+      .replace(/\u00a0/g, ' ')
+      .split('\n')
+      .map((line) => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+    const unique = lines.filter(
+      (line, index) => index === 0 || line.toLowerCase() !== lines[index - 1].toLowerCase(),
+    )
+    return unique
+      .join('\n')
+      .replace(/^About the job\s+About the job\b/i, 'About the job')
+      .replace(/^About the job\s+(?=About\b)/i, '')
+      .trim()
+  }
+
+  const selectors = [
+    '#job-details',
+    '.jobs-description__content',
+    '.jobs-description-content__text',
+    '.jobs-description__container',
+    'article.jobs-description__container',
+    '.jobs-box__html-content',
+    '#jobDescriptionText',
+    '.jobsearch-JobComponent-description',
+    '.job-description',
+    '[data-test="job-description"]',
+  ]
+
+  const candidates = []
+  for (const selector of selectors) {
+    for (const element of document.querySelectorAll(selector)) {
+      const text = normalize(element.innerText || element.textContent || '')
+      if (text.length >= 200) candidates.push(text)
+    }
+  }
+
+  // Fallback: locate the "About the job" heading and climb to the block that
+  // holds the full description when no known container selector matches.
+  if (candidates.length === 0) {
+    const headings = Array.from(document.querySelectorAll('h1, h2, h3, [role="heading"]'))
+    const aboutHeading = headings.find((heading) => /about the job/i.test(heading.textContent || ''))
+    let node = aboutHeading ? aboutHeading.parentElement : null
+    for (let depth = 0; node && depth < 4; depth += 1) {
+      const text = normalize(node.innerText || node.textContent || '')
+      if (text.length >= 200) {
+        candidates.push(text)
+        break
+      }
+      node = node.parentElement
+    }
+  }
+
+  if (candidates.length === 0) return ''
+  return candidates.sort((a, b) => b.length - a.length)[0]
+}
+
 function App() {
   const [step, setStep] = useState(1)
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(1)
@@ -115,6 +177,17 @@ function App() {
   const [resultMessage, setResultMessage] = useState('')
   const pollTimerRef = useRef(null)
   const pdfBlobUrlRef = useRef('')
+  const lastExtractedJdRef = useRef('')
+  const jdRef = useRef('')
+  const processingRef = useRef(false)
+
+  useEffect(() => {
+    jdRef.current = jd
+  }, [jd])
+
+  useEffect(() => {
+    processingRef.current = isProcessing
+  }, [isProcessing])
 
   const advanceTo = (target) => {
     setStep(target)
@@ -136,6 +209,40 @@ function App() {
       }
     }
     // Extension popup should extract the active tab once when it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // The side panel stays open across navigation, so refresh the JD when the
+  // user switches tabs or a page finishes loading — but never clobber text
+  // the user typed or pasted by hand.
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.tabs?.onActivated) return undefined
+
+    const autoExtract = async (tabId) => {
+      if (processingRef.current) return
+      try {
+        const text = await extractFromTab(tabId)
+        if (!text) return
+        const current = jdRef.current.trim()
+        if (current && current !== lastExtractedJdRef.current.trim()) return
+        if (text.trim() === current) return
+        applyExtractedJd(text)
+      } catch {
+        // Best-effort refresh only.
+      }
+    }
+
+    const onActivated = ({ tabId }) => { void autoExtract(tabId) }
+    const onUpdated = (tabId, info, tab) => {
+      if (info.status === 'complete' && tab?.active) void autoExtract(tabId)
+    }
+
+    chrome.tabs.onActivated.addListener(onActivated)
+    chrome.tabs.onUpdated.addListener(onUpdated)
+    return () => {
+      chrome.tabs.onActivated.removeListener(onActivated)
+      chrome.tabs.onUpdated.removeListener(onUpdated)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -181,6 +288,45 @@ function App() {
     }
   }
 
+  // Returns the JD text, '' when the page was reachable but had no JD, or
+  // null when the page could not be accessed at all.
+  async function extractFromTab(tabId) {
+    // Fresh injection first: it survives extension reloads that orphan the
+    // content script, which is the common failure in a long-lived side panel.
+    if (chrome.scripting?.executeScript) {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: extractJobDescriptionInPage,
+        })
+        return results?.[0]?.result || ''
+      } catch {
+        // No host permission for this site or a restricted page; fall through
+        // to the declared content script.
+      }
+    }
+
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_JD' }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve(null)
+          return
+        }
+        resolve(response?.jd || '')
+      })
+    })
+  }
+
+  const applyExtractedJd = (text) => {
+    lastExtractedJdRef.current = text
+    setJd(text)
+    setAtsReport(null)
+    setResumeChanges(null)
+    resetGeneratedPdf()
+    setMaxUnlockedStep((current) => Math.min(current, 1))
+    setJdStatus('Full job description detected.')
+  }
+
   async function extractJdFromPage() {
     setLoadingJd(true)
     setJdStatus('')
@@ -196,24 +342,18 @@ function App() {
         throw new Error('Could not access the active tab.')
       }
 
-      chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_JD' }, (response) => {
-        if (chrome.runtime.lastError) {
-          setJdStatus('Could not extract this page. Open a supported job posting and retry.')
-        } else if (response?.jd) {
-          setJd(response.jd)
-          setAtsReport(null)
-          setResumeChanges(null)
-          resetGeneratedPdf()
-          setMaxUnlockedStep((current) => Math.min(current, 1))
-          setJdStatus('Full job description detected.')
-        } else {
-          setJdStatus('No job description was found on this page. Paste it below.')
-        }
-        setLoadingJd(false)
-      })
+      const text = await extractFromTab(tab.id)
+      if (text) {
+        applyExtractedJd(text)
+      } else if (text === null) {
+        setJdStatus('Could not read this page. Open the job posting on LinkedIn/Indeed and press Extract again.')
+      } else {
+        setJdStatus('No job description was found on this page. Paste it below.')
+      }
     } catch (error) {
       console.error(error)
       setJdStatus(error instanceof Error ? error.message : 'Could not extract the job description.')
+    } finally {
       setLoadingJd(false)
     }
   }
