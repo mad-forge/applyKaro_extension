@@ -219,10 +219,18 @@ export function assembleResumeData(
     ...assembled.projects.flatMap((item) => item.bullets),
   ].join('\n');
 
-  assembled.addedKeywords = optimized.addedKeywords.filter((item) => (
-    sourceContains(sourceText, item.keyword)
-    && generatedText.toLowerCase().includes(item.keyword.toLowerCase())
-  ));
+  const normalizeLocation = (location: string) => {
+    if (/summ/i.test(location)) return 'summary';
+    if (/proj/i.test(location)) return 'projects';
+    return 'experience';
+  };
+
+  assembled.addedKeywords = optimized.addedKeywords
+    .filter((item) => (
+      sourceContains(sourceText, item.keyword)
+      && generatedText.toLowerCase().includes(item.keyword.toLowerCase())
+    ))
+    .map((item) => ({ ...item, location: normalizeLocation(item.location) }));
 
   return assembled;
 }

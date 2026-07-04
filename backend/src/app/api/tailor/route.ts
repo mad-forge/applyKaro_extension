@@ -51,6 +51,7 @@ function resumeDataToText(data: ResumeData) {
     data.contact,
     data.summary,
     data.skills.join(', '),
+    ...(data.skillGroups?.map((group) => `${group.label}: ${group.skills.join(', ')}`) ?? []),
     ...data.experience.flatMap((item) => [`${item.title} ${item.organization} ${item.duration}`, ...item.bullets]),
     ...data.projects.flatMap((item) => [`${item.title} ${item.organization} ${item.duration}`, ...item.bullets]),
     ...data.education.map((item) => `${item.degree} ${item.institution} ${item.duration}`),

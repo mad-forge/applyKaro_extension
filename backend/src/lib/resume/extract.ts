@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { ResumeData } from '@/components/ResumePDF';
 import { chatCompletion, extractJsonObject } from '@/lib/ai/openrouter';
+import { unique } from '@/lib/ats/text';
 import { RequestValidationError } from '@/lib/http/request-validation';
 import { parseModelResume } from './parse-model-resume';
 import { validateTailoredData } from './factual-validation';
@@ -96,7 +97,14 @@ async function requestExtraction(resumeText: string, correctionErrors: string[] 
     // Fall through: parseModelResume reports malformed JSON with its own error.
   }
 
-  return parseModelResume(content);
+  return withFlattenedSkills(parseModelResume(content));
+}
+
+// The model sometimes fills skillGroups but leaves the flat skills list
+// empty; downstream ordering/scoring relies on the flat list.
+export function withFlattenedSkills(data: ExtractedResume): ExtractedResume {
+  if (data.skills.length > 0 || !data.skillGroups?.length) return data;
+  return { ...data, skills: unique(data.skillGroups.flatMap((group) => group.skills)) };
 }
 
 export async function extractResumeFacts(resumeText: string): Promise<ExtractedResume> {

@@ -3,7 +3,12 @@ import type { ResumeChanges, TextChange } from '@/lib/ats/types';
 import { normalizeText, unique } from '@/lib/ats/text';
 
 function sameText(left: string, right: string) {
-  return normalizeText(left) === normalizeText(right);
+  const normalizedLeft = normalizeText(left);
+  const normalizedRight = normalizeText(right);
+  if (normalizedLeft === normalizedRight) return true;
+  // PDF extraction leaves line-break hyphens ("work- flows" vs
+  // "workflows"); a whitespace-free comparison ignores those artifacts.
+  return normalizedLeft.replace(/ /g, '') === normalizedRight.replace(/ /g, '');
 }
 
 function itemChanges(sourceItems: ResumeItem[], tailoredItems: ResumeItem[]): TextChange[] {
