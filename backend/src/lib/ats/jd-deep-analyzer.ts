@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { chatCompletion, extractJsonObject, isOpenRouterConfigured } from '@/lib/ai/openrouter';
+import { RequestValidationError } from '@/lib/http/request-validation';
 import { analyzeJobDescriptionWithTaxonomy } from './jd-analyzer';
 import { normalizeText, unique } from './text';
 import type {
@@ -51,6 +52,7 @@ const JD_ANALYSIS_SYSTEM_PROMPT = `
 You are a strict, senior ATS (Applicant Tracking System) analyst and technical recruiter. Analyze the job description and extract exactly what an ATS and a human screener would score a resume against.
 
 EXTRACTION RULES:
+0. If the provided text is clearly NOT a job description (for example a resume, article, song lyrics, or random text), return exactly {"notJobDescription": true} and nothing else.
 1. Extract ONLY what the job description actually states or unambiguously implies. Never invent requirements.
 2. skills must cover EVERY concrete competency in the JD: technologies, frameworks, tools, platforms, methodologies, domain knowledge, certifications, and important soft skills.
 3. priority reflects how a screener would weigh each skill:
@@ -138,6 +140,9 @@ function sanitizeRequirements(value: unknown): JdRequirement[] {
 
 function parseDeepAnalysis(content: string, jd: string): JdAnalysis {
   const parsed = JSON.parse(extractJsonObject(content)) as Record<string, unknown>;
+  if (parsed.notJobDescription === true) {
+    throw new RequestValidationError('The provided text does not look like a job description. Paste the full JD from the job posting.', 422);
+  }
   const requirements = sanitizeRequirements(parsed.skills);
   if (requirements.length === 0) {
     throw new Error('JD analysis returned no skills');
@@ -228,6 +233,7 @@ export async function analyzeJobDescriptionDeep(jd: string): Promise<JdAnalysis>
     writeCache(key, analysis);
     return analysis;
   } catch (error) {
+    if (error instanceof RequestValidationError) throw error;
     console.error('Deep JD analysis failed, falling back to taxonomy:', error);
     const fallback = analyzeJobDescriptionWithTaxonomy(jd);
     writeCache(key, fallback);

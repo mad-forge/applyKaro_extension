@@ -10,9 +10,14 @@ const INSECURE_OPENROUTER_AGENT = new Agent({
   },
 });
 
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+  | { type: 'file'; file: { filename: string; file_data: string } };
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | ContentPart[];
 }
 
 export interface ChatCompletionOptions {
@@ -21,6 +26,8 @@ export interface ChatCompletionOptions {
   maxTokens?: number;
   timeoutMs?: number;
   model?: string;
+  responseFormat?: 'json' | 'text';
+  plugins?: { id: string; pdf?: { engine: string } }[];
 }
 
 export function getOpenRouterConfig() {
@@ -80,7 +87,8 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<st
         model: options.model || model,
         temperature: options.temperature ?? 0.1,
         max_tokens: options.maxTokens ?? 4_000,
-        response_format: { type: 'json_object' },
+        ...(options.responseFormat === 'text' ? {} : { response_format: { type: 'json_object' } }),
+        ...(options.plugins ? { plugins: options.plugins } : {}),
         messages: options.messages,
       }),
     };

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { ResumeData } from '@/components/ResumePDF';
-import { chatCompletion } from '@/lib/ai/openrouter';
+import { chatCompletion, extractJsonObject } from '@/lib/ai/openrouter';
+import { RequestValidationError } from '@/lib/http/request-validation';
 import { parseModelResume } from './parse-model-resume';
 import { validateTailoredData } from './factual-validation';
 
@@ -45,6 +46,7 @@ const EXTRACTION_SYSTEM_PROMPT = `
 You are a precise resume parser. Convert the source resume text into structured JSON WITHOUT changing any wording. This is pure extraction, not rewriting.
 
 STRICT RULES:
+0. If the document is clearly NOT a person's resume/CV (for example a job description, invoice, article, or random text), return exactly {"notResume": true} and nothing else.
 1. Copy every value VERBATIM from the source resume: names, contact details, job titles, employers, durations, degrees, institutions, project names, bullet text, section values.
 2. Do not improve, summarize, translate, reorder, expand, or "fix" anything. Preserve the source's own wording, including its exact dates and duration strings.
 3. If a field is absent in the source, use an empty string (never invent or estimate).
@@ -84,6 +86,16 @@ async function requestExtraction(resumeText: string, correctionErrors: string[] 
     ],
   });
 
+  try {
+    const raw = JSON.parse(extractJsonObject(content)) as Record<string, unknown>;
+    if (raw.notResume === true) {
+      throw new RequestValidationError('The uploaded file does not look like a resume. Upload your actual resume (PDF or DOCX).', 422);
+    }
+  } catch (error) {
+    if (error instanceof RequestValidationError) throw error;
+    // Fall through: parseModelResume reports malformed JSON with its own error.
+  }
+
   return parseModelResume(content);
 }
 
@@ -108,7 +120,7 @@ export async function extractResumeFacts(resumeText: string): Promise<ExtractedR
   }
 
   if (facts.experience.length === 0 && facts.projects.length === 0) {
-    throw new Error('Could not find any experience or projects in the resume.');
+    throw new RequestValidationError('Could not find any work experience or projects in this document. Make sure you uploaded your actual resume.', 422);
   }
 
   writeCache(key, facts);

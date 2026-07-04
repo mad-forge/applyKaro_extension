@@ -19,10 +19,10 @@ export default function ResumeUploadCard({ resumeFile, resumeSyncStatus, savedRe
           <Upload size={15} strokeWidth={2.25} />
         </div>
         <span className="file-picker-label">{resumeFile ? 'Replace file' : 'Choose file'}</span>
-        <strong className="file-picker-name">{resumeFile?.name || 'No resume selected (PDF or DOCX)'}</strong>
+        <strong className="file-picker-name">{resumeFile?.name || 'No resume selected (PDF, DOCX, or image)'}</strong>
         <input
           type="file"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp"
           onChange={onFileChange}
         />
       </label>
