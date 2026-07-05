@@ -176,16 +176,21 @@ const Bullets = ({ bullets }) => (
   </>
 )
 
+// The heading is bundled with the first item's small header rows (never the
+// bullets) so it cannot be orphaned at a page break without dragging whole
+// sections to the next page.
 const ItemsSection = ({ title, items }) => (
   <View style={styles.section}>
-    <Text style={styles.heading} minPresenceAhead={40}>{title}</Text>
     {items.map((item, index) => (
       <View key={`${item.title}-${index}`} style={styles.item}>
-        <View style={styles.itemHeader} minPresenceAhead={30}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-          {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
+        <View wrap={false}>
+          {index === 0 && <Text style={styles.heading}>{title}</Text>}
+          <View style={styles.itemHeader}>
+            <Text style={styles.itemTitle}>{item.title}</Text>
+            {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
+          </View>
+          {item.organization && <Text style={styles.itemSubtitle}>{item.organization}</Text>}
         </View>
-        {item.organization && <Text style={styles.itemSubtitle}>{item.organization}</Text>}
         <Bullets bullets={item.bullets || []} />
       </View>
     ))}
@@ -215,12 +220,23 @@ const Skills = ({ data }) => {
 // labeled paragraph.
 const AdditionalSection = ({ item }) => {
   const parts = item.value.split(/\n|(?=•)/).map((part) => part.replace(/^[•\s]+/, '').trim()).filter(Boolean)
+  if (parts.length > 1) {
+    return (
+      <View style={styles.section}>
+        <View wrap={false}>
+          <Text style={styles.heading}>{item.label}</Text>
+          <Bullets bullets={parts.slice(0, 1)} />
+        </View>
+        <Bullets bullets={parts.slice(1)} />
+      </View>
+    )
+  }
   return (
     <View style={styles.section}>
-      <Text style={styles.heading} minPresenceAhead={30}>{item.label}</Text>
-      {parts.length > 1
-        ? <Bullets bullets={parts} />
-        : <Text style={styles.paragraph}>{parts[0] || item.value}</Text>}
+      <View wrap={false}>
+        <Text style={styles.heading}>{item.label}</Text>
+        <Text style={styles.paragraph}>{parts[0] || item.value}</Text>
+      </View>
     </View>
   )
 }
@@ -261,9 +277,9 @@ export const ResumePDF = ({ data }) => (
 
       {data.education?.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.heading} minPresenceAhead={40}>Education</Text>
           {data.education.map((item, index) => (
-            <View key={`${item.institution}-${index}`} style={styles.educationBlock}>
+            <View key={`${item.institution}-${index}`} style={styles.educationBlock} wrap={false}>
+              {index === 0 && <Text style={styles.heading}>Education</Text>}
               <View style={styles.educationRow}>
                 <Text style={styles.educationDegree}>{item.degree}</Text>
                 {item.duration && <Text style={styles.duration}>{item.duration}</Text>}

@@ -26,9 +26,12 @@ RULES FOR BULLETS:
 3. Reorder bullets so the most JD-relevant come first. Keep every original bullet's substance — condense wording but do not drop source-supported content merely to shorten.
 4. Cover CRITICAL requirements first, then IMPORTANT, then nice-to-have — but only where original evidence exists.
 5. Return bullets for every item id you receive. If an item needs no changes, return its original bullets unchanged.
+6. NEVER bolt a keyword onto the end of a bullet with filler such as ", demonstrating X", ", supporting Y", ", focusing on Z", ", contributing to W", ", showcasing V". That reads as machine-written keyword stuffing. A JD keyword may only appear as the natural verb or object of the accomplishment itself (e.g. "Automated regression suites in Cypress and wired them into the CI/CD pipeline"). If a keyword cannot fit naturally, leave the bullet unchanged.
+7. Express soft skills (communication, leadership, collaboration) through what was actually done ("partnered with product owners to scope requirements"), never as abstract capitalized nouns.
 
 RULES FOR SUMMARY:
-- A direct, evidence-based pitch for this JD. Lead with the role that best matches the target JD. Mention years of experience only if the original resume states them. No fluffy adjectives.
+- A direct, evidence-based pitch for this JD. Mention years of experience only if the original resume states them. No fluffy adjectives.
+- Lead with a role title that the source resume itself supports (one of the source job titles, or the wording of the source summary). NEVER adopt the JD's title when the source does not support it — a QA/frontend candidate must not be relabeled "Fullstack Engineer".
 
 RULES FOR SKILLS:
 - Return the provided source skills reordered by JD relevance (critical first). You may rewrite a skill's wording to the JD's terminology ONLY if it is clearly the same skill (e.g. "ReactJS" -> "React.js"). Never add a skill that is not in the provided list.
@@ -104,8 +107,12 @@ function parseOptimizedContent(content: string): OptimizedContent {
 async function requestOptimization(
   facts: ExtractedResume,
   jdTargets: string,
+  qualityCorrections: string[] = [],
   jsonRetryMessage = '',
 ): Promise<OptimizedContent> {
+  const corrections = qualityCorrections.length > 0
+    ? `\nYour previous response had quality problems. Fix every issue below while keeping all other rules:\n- ${qualityCorrections.join('\n- ')}\n`
+    : '';
   const retry = jsonRetryMessage ? `\n${jsonRetryMessage}\n` : '';
   const content = await chatCompletion({
     timeoutMs: OPTIMIZE_TIMEOUT_MS,
@@ -113,7 +120,7 @@ async function requestOptimization(
     temperature: 0.1,
     messages: [
       { role: 'system', content: OPTIMIZE_SYSTEM_PROMPT },
-      { role: 'user', content: `${retry}${buildOptimizeInput(facts, jdTargets)}` },
+      { role: 'user', content: `${corrections}${retry}${buildOptimizeInput(facts, jdTargets)}` },
     ],
   });
 
@@ -125,11 +132,71 @@ async function requestOptimization(
       return requestOptimization(
         facts,
         jdTargets,
+        qualityCorrections,
         'Your previous response was invalid or incomplete JSON. Return exactly one complete minified JSON object with non-empty "summary" and "items". Start with "{" and end with "}".',
       );
     }
     throw new Error('AI returned an invalid optimization response');
   }
+}
+
+// Detects the classic keyword-stuffing pattern: a comma followed by a filler
+// participle and a bolted-on keyword phrase at the very end of a bullet.
+const TACK_ON_PATTERN = /,\s+(?:thereby\s+)?(?:demonstrating|showcasing|supporting|contributing to|focusing on|highlighting|emphasizing|reflecting|exhibiting|aligning with)\s+[^,.]{2,60}[.!]?\s*$/i;
+
+export function stripTackOn(bullet: string) {
+  if (!TACK_ON_PATTERN.test(bullet)) return bullet;
+  const stripped = bullet.replace(TACK_ON_PATTERN, '').trimEnd();
+  return /[.!?]$/.test(stripped) ? stripped : `${stripped}.`;
+}
+
+export function findTackOnBullets(optimized: OptimizedContent) {
+  return optimized.items.flatMap((item) => item.bullets.filter((bullet) => TACK_ON_PATTERN.test(bullet)));
+}
+
+// The summary must not relabel the candidate with a JD title the source
+// resume never supports (e.g. QA/frontend -> "Fullstack Engineer"). A role
+// claim must come from the source's own titles/summary — a project adjective
+// like "built a full-stack app" does not make someone a Fullstack Engineer.
+export function findUnsupportedLeadTitle(summary: string, titleEvidence: string) {
+  const match = summary.match(/^([A-Z][A-Za-z0-9+#./&\- ]{2,50}?)\s+(?:with|having|who|experienced|skilled|specializ|bringing)/);
+  if (!match) return null;
+  const title = match[1].trim();
+  return sourceContains(titleEvidence, title) ? null : title;
+}
+
+function titleEvidence(facts: ExtractedResume) {
+  return [facts.summary, ...facts.experience.map((item) => item.title)].filter(Boolean).join('\n');
+}
+
+function qualityIssues(optimized: OptimizedContent, facts: ExtractedResume) {
+  const issues: string[] = [];
+  for (const bullet of findTackOnBullets(optimized)) {
+    issues.push(`Rewrite this bullet without the bolted-on keyword ending — integrate the keyword naturally or drop it: "${bullet}"`);
+  }
+  const badTitle = findUnsupportedLeadTitle(optimized.summary, titleEvidence(facts));
+  if (badTitle) {
+    issues.push(`The summary opens with the title "${badTitle}", which the source resume's own titles do not support. Open with one of the source job titles or the source summary's role wording instead.`);
+  }
+  return issues;
+}
+
+// Last-resort deterministic cleanup when the retry still ships tack-ons or an
+// invented title.
+function enforceQuality(optimized: OptimizedContent, facts: ExtractedResume): OptimizedContent {
+  const items = optimized.items.map((item) => ({
+    ...item,
+    bullets: item.bullets.map(stripTackOn),
+  }));
+
+  let summary = optimized.summary;
+  const badTitle = findUnsupportedLeadTitle(summary, titleEvidence(facts));
+  const fallbackTitle = facts.experience[0]?.title;
+  if (badTitle && fallbackTitle) {
+    summary = summary.replace(badTitle, fallbackTitle);
+  }
+
+  return { ...optimized, items, summary };
 }
 
 function normalizeSkill(value: string) {
@@ -240,6 +307,14 @@ export async function optimizeResume(
   jdTargets: string,
   sourceText: string,
 ): Promise<ResumeData> {
-  const optimized = await requestOptimization(facts, jdTargets);
+  let optimized = await requestOptimization(facts, jdTargets);
+
+  const issues = qualityIssues(optimized, facts);
+  if (issues.length > 0) {
+    console.warn('Optimization quality issues, retrying with corrections:', issues);
+    optimized = await requestOptimization(facts, jdTargets, issues);
+  }
+  optimized = enforceQuality(optimized, facts);
+
   return assembleResumeData(facts, optimized, sourceText);
 }

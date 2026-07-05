@@ -97,7 +97,7 @@ async function requestExtraction(resumeText: string, correctionErrors: string[] 
     // Fall through: parseModelResume reports malformed JSON with its own error.
   }
 
-  return withFlattenedSkills(parseModelResume(content));
+  return withDedupedProjects(withFlattenedSkills(parseModelResume(content)));
 }
 
 // The model sometimes fills skillGroups but leaves the flat skills list
@@ -105,6 +105,30 @@ async function requestExtraction(resumeText: string, correctionErrors: string[] 
 export function withFlattenedSkills(data: ExtractedResume): ExtractedResume {
   if (data.skills.length > 0 || !data.skillGroups?.length) return data;
   return { ...data, skills: unique(data.skillGroups.flatMap((group) => group.skills)) };
+}
+
+// Some resumes list the same project under multiple section headings; merge
+// duplicates by title, keeping the first occurrence's fields and the union of
+// bullets.
+export function withDedupedProjects(data: ExtractedResume): ExtractedResume {
+  if (data.projects.length < 2) return data;
+
+  const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const byTitle = new Map<string, ExtractedResume['projects'][number]>();
+
+  for (const project of data.projects) {
+    const key = normalizeTitle(project.title);
+    const existing = byTitle.get(key);
+    if (!existing) {
+      byTitle.set(key, { ...project, bullets: [...project.bullets] });
+      continue;
+    }
+    existing.bullets = unique([...existing.bullets, ...project.bullets]);
+    if (!existing.organization) existing.organization = project.organization;
+    if (!existing.duration) existing.duration = project.duration;
+  }
+
+  return { ...data, projects: [...byTitle.values()] };
 }
 
 export async function extractResumeFacts(resumeText: string): Promise<ExtractedResume> {

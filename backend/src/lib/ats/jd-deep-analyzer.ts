@@ -10,8 +10,8 @@ import type {
   SkillCategory,
 } from './types';
 
-const ANALYSIS_TIMEOUT_MS = 30_000;
-const ANALYSIS_MAX_TOKENS = 2_500;
+const ANALYSIS_TIMEOUT_MS = 45_000;
+const ANALYSIS_MAX_TOKENS = 6_000;
 const ANALYSIS_CACHE_TTL_MS = 30 * 60 * 1000;
 const ANALYSIS_CACHE_MAX_ENTRIES = 200;
 const MAX_JD_ANALYSIS_CHARS = 24_000;
@@ -55,15 +55,18 @@ EXTRACTION RULES:
 0. If the provided text is clearly NOT a job description (for example a resume, article, song lyrics, or random text), return exactly {"notJobDescription": true} and nothing else.
 1. Extract ONLY what the job description actually states or unambiguously implies. Never invent requirements.
 2. skills must cover EVERY concrete competency in the JD: technologies, frameworks, tools, platforms, methodologies, domain knowledge, certifications, and important soft skills.
+2b. Sections labelled "Must have", "Required", "Mandatory", "Qualifications", or "Requirements" are EXHAUSTIVE: every skill listed there MUST appear in your output with priority "critical". Never drop or merge away an explicitly listed must-have (e.g. if the JD lists Angular, SQL & NoSQL, OAuth/JWT, Docker, and System Design as must-haves, each one must be its own critical entry).
+2c. When the JD offers ALTERNATIVES ("React or Angular", "Node.js (Express) preferred, or Python (Django/FastAPI)"), emit ONE requirement named after the first/preferred option and put every alternative in its aliases, so a resume matching ANY alternative counts as a match. But if one of the alternatives is ALSO listed separately as a hard must-have, keep that one as its own critical requirement too.
 3. priority reflects how a screener would weigh each skill:
    - "critical": explicitly required, must-have, core to the role title, or mentioned repeatedly.
    - "important": clearly part of the day-to-day responsibilities but not phrased as a hard requirement.
    - "nice-to-have": preferred, bonus, "a plus", or optional.
-4. aliases: common spellings/abbreviations/synonyms an ATS or resume may use for the same skill (e.g. "JavaScript" -> ["js", "ecmascript"]). Lowercase. Do not include unrelated terms.
+4. aliases: common spellings/abbreviations/synonyms an ATS or resume may use for the same skill (e.g. "JavaScript" -> ["js", "ecmascript"]), plus any accepted alternatives from rule 2c. Lowercase. Do not include unrelated terms.
 5. atsKeywords: the exact words and short phrases (max 4 words each) from the JD that an ATS keyword scanner would look for, including role titles and domain vocabulary. Use the JD's own wording.
 6. responsibilities: the core duties, condensed to short actionable phrases.
 7. qualifications.experienceYears: quote the JD's experience requirement (e.g. "3+ years in QA"), or "" if none stated.
-8. Be exhaustive on skills and atsKeywords, but never duplicate near-identical entries.
+8. Be exhaustive on skills and atsKeywords, but never duplicate near-identical entries. Cap skills at 40 entries, aliases at 6 per skill, and keep every evidence quote under 10 words.
+9. Output MINIFIED JSON — a single line with no indentation or extra whitespace. Long pretty-printed output gets truncated and discarded.
 
 Return ONLY one minified JSON object with this exact shape (no markdown, no commentary):
 {
@@ -207,6 +210,23 @@ function mergeWithTaxonomy(analysis: JdAnalysis, jd: string): JdAnalysis {
   };
 }
 
+async function requestDeepAnalysis(jd: string, compactRetry = false): Promise<JdAnalysis> {
+  const retryNote = compactRetry
+    ? '\nYour previous response was cut off before completing. Respond again as ONE MINIFIED single-line JSON object, capping skills at 35 and keeping every evidence quote under 8 words.\n'
+    : '';
+  const content = await chatCompletion({
+    timeoutMs: ANALYSIS_TIMEOUT_MS,
+    maxTokens: ANALYSIS_MAX_TOKENS,
+    temperature: 0,
+    messages: [
+      { role: 'system', content: JD_ANALYSIS_SYSTEM_PROMPT },
+      { role: 'user', content: `${retryNote}--- JOB DESCRIPTION ---\n${jd.slice(0, MAX_JD_ANALYSIS_CHARS)}` },
+    ],
+  });
+
+  return parseDeepAnalysis(content, jd);
+}
+
 export async function analyzeJobDescriptionDeep(jd: string): Promise<JdAnalysis> {
   const key = cacheKey(jd);
   const cached = readCache(key);
@@ -219,17 +239,18 @@ export async function analyzeJobDescriptionDeep(jd: string): Promise<JdAnalysis>
   }
 
   try {
-    const content = await chatCompletion({
-      timeoutMs: ANALYSIS_TIMEOUT_MS,
-      maxTokens: ANALYSIS_MAX_TOKENS,
-      temperature: 0,
-      messages: [
-        { role: 'system', content: JD_ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: `--- JOB DESCRIPTION ---\n${jd.slice(0, MAX_JD_ANALYSIS_CHARS)}` },
-      ],
-    });
+    let parsed: JdAnalysis;
+    try {
+      parsed = await requestDeepAnalysis(jd);
+    } catch (error) {
+      if (error instanceof RequestValidationError) throw error;
+      // Truncated/malformed output happens on requirement-dense JDs; one
+      // compact retry before degrading to the shallow taxonomy analysis.
+      console.warn('Deep JD analysis parse failed, retrying compact:', error);
+      parsed = await requestDeepAnalysis(jd, true);
+    }
 
-    const analysis = mergeWithTaxonomy(parseDeepAnalysis(content, jd), jd);
+    const analysis = mergeWithTaxonomy(parsed, jd);
     writeCache(key, analysis);
     return analysis;
   } catch (error) {

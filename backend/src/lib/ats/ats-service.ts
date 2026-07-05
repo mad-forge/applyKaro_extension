@@ -75,7 +75,9 @@ function gapAnalysis(requirements: JdRequirement[], resume: string): GapAnalysis
       capabilityGaps.push({
         term: requirement.name,
         reason: `No evidence of ${requirement.name} was found in the resume.`,
-        recommendation: `Do not add ${requirement.name} unless you have genuine experience. Address it through learning or a real project.`,
+        recommendation: requirement.category === 'soft-skill'
+          ? `Show ${requirement.name.toLowerCase()} through what you did in your bullets (e.g. collaboration, stakeholder updates, mentoring) rather than listing it as a skill.`
+          : `Do not add ${requirement.name} unless you have genuine experience. Address it through learning or a real project.`,
       });
       continue;
     }
