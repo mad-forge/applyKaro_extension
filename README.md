@@ -99,7 +99,7 @@ applyKro/
 ```bash
 cd backend
 npm install
-# create .env.local with at least:
+# create .env.local with at least:¯
 #   OPENROUTER_API_KEY=sk-or-...
 #   AI_MODEL=google/gemini-2.5-flash-lite     # needs structured-output + vision support
 # optional: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (user-resume sync)
