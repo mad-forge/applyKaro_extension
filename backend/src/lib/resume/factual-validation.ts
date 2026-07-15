@@ -72,6 +72,7 @@ export function sourceContains(source: string, value: string) {
 }
 
 function sourceContainsParts(source: string, value: string) {
+  if (!value.trim()) return true;
   const parts = value.split(/[\n|,;•&]+/).map((part) => part.trim()).filter(Boolean);
   return parts.length > 0 && parts.every((part) => sourceContains(source, part));
 }

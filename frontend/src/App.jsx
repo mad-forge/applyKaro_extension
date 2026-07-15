@@ -8,13 +8,16 @@ import AtsReportCard from './components/AtsReportCard.jsx'
 import KeywordsCard from './components/KeywordsCard.jsx'
 import ChangesCard from './components/ChangesCard.jsx'
 import ScoreImprovementCard from './components/ScoreImprovementCard.jsx'
+import TemplatePickerCard from './components/TemplatePickerCard.jsx'
 import ActionFooter from './components/ActionFooter.jsx'
+import { DEFAULT_TEMPLATE_ID, getResumeTemplateMeta } from './components/resume-templates/index.js'
 
 const API_BASE_URL = 'http://localhost:3000/api'
 const REQUEST_TIMEOUT_MS = 180000
 const POLL_INTERVAL_MS = 3000
 const SAVED_RESUME_KEY = 'applyKro:selectedResume'
 const USER_PROFILE_KEY = 'applyKro:userProfile'
+const TEMPLATE_KEY = 'applyKro:selectedTemplate'
 
 const chromeStorageGet = (keys) => new Promise((resolve) => {
   if (typeof chrome === 'undefined' || !chrome.storage?.local) {
@@ -173,6 +176,7 @@ function App() {
   const [resumeChanges, setResumeChanges] = useState(null)
   const [scoreImprovement, setScoreImprovement] = useState(null)
   const [tailoredData, setTailoredData] = useState(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID)
   const [pdfBlobUrl, setPdfBlobUrl] = useState('')
   const [resultMessage, setResultMessage] = useState('')
   const pollTimerRef = useRef(null)
@@ -262,12 +266,16 @@ function App() {
     try {
       const [profile, stored] = await Promise.all([
         getGoogleProfile(),
-        chromeStorageGet([SAVED_RESUME_KEY, USER_PROFILE_KEY]),
+        chromeStorageGet([SAVED_RESUME_KEY, USER_PROFILE_KEY, TEMPLATE_KEY]),
       ])
       const resolvedProfile = profile || stored[USER_PROFILE_KEY] || null
       if (resolvedProfile) {
         setUserProfile(resolvedProfile)
         await chromeStorageSet({ [USER_PROFILE_KEY]: resolvedProfile })
+      }
+
+      if (stored[TEMPLATE_KEY]) {
+        setSelectedTemplateId(stored[TEMPLATE_KEY])
       }
 
       const savedResume = stored[SAVED_RESUME_KEY]
@@ -500,11 +508,11 @@ function App() {
   }
 
   const generatePdfBlob = async (data) => {
-    const [{ pdf }, { ResumePDF }] = await Promise.all([
+    const [{ pdf }, ResumeTemplate] = await Promise.all([
       import('@react-pdf/renderer'),
-      import('./components/ResumePDF.jsx'),
+      getResumeTemplateMeta(selectedTemplateId).load(),
     ])
-    const blob = await pdf(<ResumePDF data={data} />).toBlob()
+    const blob = await pdf(<ResumeTemplate data={data} />).toBlob()
     const url = window.URL.createObjectURL(blob)
     if (pdfBlobUrlRef.current) {
       window.URL.revokeObjectURL(pdfBlobUrlRef.current)
@@ -628,6 +636,11 @@ function App() {
     }
   }
 
+  const handleSelectTemplate = (templateId) => {
+    setSelectedTemplateId(templateId)
+    void chromeStorageSet({ [TEMPLATE_KEY]: templateId })
+  }
+
   const downloadPdf = () => {
     if (!pdfBlobUrl) return
     triggerPdfDownload(pdfBlobUrl)
@@ -675,13 +688,16 @@ function App() {
       )}
 
       {step === 2 && (
-        <ResumeUploadCard
-          resumeFile={resumeFile}
-          resumeSyncStatus={resumeSyncStatus}
-          savedResumeMeta={savedResumeMeta}
-          onFileChange={handleFileChange}
-          onClear={clearSavedResume}
-        />
+        <>
+          <ResumeUploadCard
+            resumeFile={resumeFile}
+            resumeSyncStatus={resumeSyncStatus}
+            savedResumeMeta={savedResumeMeta}
+            onFileChange={handleFileChange}
+            onClear={clearSavedResume}
+          />
+          <TemplatePickerCard selectedTemplateId={selectedTemplateId} onSelect={handleSelectTemplate} />
+        </>
       )}
 
       {step === 3 && atsReport && <AtsReportCard atsReport={atsReport} />}

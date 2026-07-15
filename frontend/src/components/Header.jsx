@@ -1,5 +1,7 @@
 import brandLogo from '../assets/brand-logo.png'
-import { Sparkles, UserRound } from 'lucide-react'
+import { ExternalLink, Sparkles, UserRound } from 'lucide-react'
+
+const LANDING_PAGE_URL = 'http://localhost:3001'
 
 export default function Header({ userEmail }) {
   return (
@@ -21,6 +23,15 @@ export default function Header({ userEmail }) {
           </p>
         )}
       </div>
+      <a
+        className="landing-link"
+        href={LANDING_PAGE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Visit the ApplyKro website"
+      >
+        <ExternalLink size={14} strokeWidth={2.5} />
+      </a>
     </header>
   )
 }

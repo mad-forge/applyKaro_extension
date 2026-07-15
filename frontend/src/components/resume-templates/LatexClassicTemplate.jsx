@@ -1,49 +1,32 @@
 import { Document, Font, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import cmuRegular from '../../assets/fonts/cmunrm.ttf'
-import cmuBold from '../../assets/fonts/cmunbx.ttf'
-import cmuItalic from '../../assets/fonts/cmunti.ttf'
-import cmuBoldItalic from '../../assets/fonts/cmunbi.ttf'
-
-// Computer Modern (CMU Serif) — the classic LaTeX typeface.
-Font.register({
-  family: 'CMU Serif',
-  fonts: [
-    { src: cmuRegular },
-    { src: cmuBold, fontWeight: 'bold' },
-    { src: cmuItalic, fontStyle: 'italic' },
-    { src: cmuBoldItalic, fontWeight: 'bold', fontStyle: 'italic' },
-  ],
-})
 
 // No hyphenation: broken URLs/emails and stray hyphens hurt both looks
 // and ATS text extraction. Lines still justify via word spacing.
 Font.registerHyphenationCallback((word) => [word])
 
-// Layout mirrors the reference LaTeX template: a4paper, 10pt, margins
-// top/bottom 0.3in left/right 0.4in, tight list spacing, a framed page
-// edge, and content that flows freely instead of jumping whole blocks
-// to the next page.
+// Mirrors the classic Overleaf/Jake's-Resume LaTeX template: a4paper, 10pt
+// Times, margins top/bottom 0.3in left/right 0.4in, small-caps section
+// rules, tight list spacing, and a plain page (no frame). 'Times-Roman' is
+// one of the 14 standard PDF fonts react-pdf ships with normal/bold/italic
+// variants pre-registered, so no font files need to be bundled.
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 18,
+    paddingVertical: 22,
     paddingHorizontal: 29,
-    fontFamily: 'CMU Serif',
+    fontFamily: 'Times-Roman',
     color: '#000000',
     fontSize: 10,
     lineHeight: 1.25,
-    borderWidth: 9,
-    borderColor: '#232a3d',
-    borderStyle: 'solid',
   },
   header: {
-    marginBottom: 3,
+    marginBottom: 4,
     textAlign: 'center',
   },
   name: {
-    marginBottom: 1,
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
-    fontSize: 25,
+    marginBottom: 2,
+    fontFamily: 'Times-Roman', fontWeight: 'bold',
+    fontSize: 24,
     lineHeight: 1.05,
   },
   contact: {
@@ -51,18 +34,18 @@ const styles = StyleSheet.create({
     lineHeight: 1.35,
   },
   contactLabel: {
-    fontFamily: 'CMU Serif',
+    fontFamily: 'Times-Roman',
     fontWeight: 'bold',
   },
   section: {
-    marginTop: 4,
+    marginTop: 5,
   },
   heading: {
-    marginBottom: 2,
+    marginBottom: 3,
     paddingBottom: 1.5,
     borderBottomWidth: 0.8,
     borderBottomColor: '#000000',
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Times-Roman', fontWeight: 'bold',
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -80,14 +63,14 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
   },
   skillGroupLabel: {
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Times-Roman', fontWeight: 'bold',
   },
   skills: {
     fontSize: 10,
     lineHeight: 1.3,
   },
   item: {
-    marginBottom: 3,
+    marginBottom: 4,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -95,18 +78,18 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   itemTitle: {
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Times-Roman', fontWeight: 'bold',
     fontSize: 10.5,
   },
   itemSubtitle: {
     marginBottom: 1,
-    fontFamily: 'CMU Serif', fontStyle: 'italic',
+    fontFamily: 'Times-Roman', fontStyle: 'italic',
     fontSize: 10,
   },
   duration: {
     flexShrink: 0,
     paddingLeft: 10,
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Times-Roman', fontWeight: 'bold',
     fontSize: 10,
   },
   bullet: {
@@ -133,11 +116,11 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   educationDegree: {
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Times-Roman', fontWeight: 'bold',
     fontSize: 10.5,
   },
   educationInst: {
-    fontFamily: 'CMU Serif', fontStyle: 'italic',
+    fontFamily: 'Times-Roman', fontStyle: 'italic',
     fontSize: 10,
   },
 })
@@ -244,7 +227,7 @@ const AdditionalSection = ({ item }) => {
   )
 }
 
-export const DefaultTemplate = ({ data }) => (
+export const LatexClassicTemplate = ({ data }) => (
   <Document title={`${data.name || 'Candidate'} - Tailored Resume`}>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>

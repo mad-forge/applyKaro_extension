@@ -27,11 +27,13 @@ export function parseModelResume(content: unknown): ResumeData {
     duration: optionalFactualValue(item.duration),
     sourceEvidence: stringValue(item.sourceEvidence),
   }));
-  const additionalItems = (value: unknown): AdditionalItem[] => recordArray(value).map((item) => ({
-    label: stringValue(item.label),
-    value: stringValue(item.value),
-    sourceEvidence: stringValue(item.sourceEvidence),
-  }));
+  const additionalItems = (value: unknown): AdditionalItem[] => recordArray(value)
+    .map((item) => ({
+      label: stringValue(item.label),
+      value: stringValue(item.value),
+      sourceEvidence: stringValue(item.sourceEvidence),
+    }))
+    .filter((item) => item.label && item.value);
 
   const skillGroups = recordArray(parsed.skillGroups)
     .map((group) => ({

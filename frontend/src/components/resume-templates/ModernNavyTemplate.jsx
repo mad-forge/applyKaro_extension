@@ -1,127 +1,137 @@
 import { Document, Font, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import cmuRegular from '../../assets/fonts/cmunrm.ttf'
-import cmuBold from '../../assets/fonts/cmunbx.ttf'
-import cmuItalic from '../../assets/fonts/cmunti.ttf'
-import cmuBoldItalic from '../../assets/fonts/cmunbi.ttf'
-
-// Computer Modern (CMU Serif) — the classic LaTeX typeface.
-Font.register({
-  family: 'CMU Serif',
-  fonts: [
-    { src: cmuRegular },
-    { src: cmuBold, fontWeight: 'bold' },
-    { src: cmuItalic, fontStyle: 'italic' },
-    { src: cmuBoldItalic, fontWeight: 'bold', fontStyle: 'italic' },
-  ],
-})
 
 // No hyphenation: broken URLs/emails and stray hyphens hurt both looks
 // and ATS text extraction. Lines still justify via word spacing.
 Font.registerHyphenationCallback((word) => [word])
 
-// Layout mirrors the reference LaTeX template: a4paper, 10pt, margins
-// top/bottom 0.3in left/right 0.4in, tight list spacing, a framed page
-// edge, and content that flows freely instead of jumping whole blocks
-// to the next page.
+// Mirrors a modern Helvetica + navy-blue LaTeX resume: two-column header
+// (name/title left, contact right-aligned), Large bold navy section
+// headings with a navy rule, and a two-row experience block (title+duration,
+// then italic navy company + location). 'Helvetica' is one of the 14
+// standard PDF fonts react-pdf ships with normal/bold/italic pre-registered.
+const NAVY = '#143C6E'
+const DARK_TEXT = '#323232'
+
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 18,
-    paddingHorizontal: 29,
-    fontFamily: 'CMU Serif',
-    color: '#000000',
+    paddingVertical: 25,
+    paddingHorizontal: 32,
+    fontFamily: 'Helvetica',
+    color: DARK_TEXT,
     fontSize: 10,
-    lineHeight: 1.25,
-    borderWidth: 9,
-    borderColor: '#232a3d',
-    borderStyle: 'solid',
+    lineHeight: 1.3,
   },
   header: {
-    marginBottom: 3,
-    textAlign: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  headerLeft: {
+    flexDirection: 'column',
+    flexShrink: 1,
+    width: '58%',
   },
   name: {
-    marginBottom: 1,
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
-    fontSize: 25,
+    fontFamily: 'Helvetica', fontWeight: 'bold',
+    color: NAVY,
+    fontSize: 24,
     lineHeight: 1.05,
   },
-  contact: {
-    fontSize: 9.5,
-    lineHeight: 1.35,
+  title: {
+    marginTop: 2,
+    fontSize: 12,
+    color: DARK_TEXT,
   },
-  contactLabel: {
-    fontFamily: 'CMU Serif',
-    fontWeight: 'bold',
+  contactBlock: {
+    flexDirection: 'column',
+    flexShrink: 0,
+    width: '40%',
+    alignItems: 'flex-end',
+  },
+  contactLine: {
+    fontSize: 9,
+    lineHeight: 1.5,
+    textAlign: 'right',
+  },
+  contactLink: {
+    color: NAVY,
   },
   section: {
-    marginTop: 4,
+    marginTop: 7,
   },
   heading: {
-    marginBottom: 2,
-    paddingBottom: 1.5,
-    borderBottomWidth: 0.8,
-    borderBottomColor: '#000000',
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    marginBottom: 3,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: NAVY,
+    fontFamily: 'Helvetica', fontWeight: 'bold',
+    color: NAVY,
+    fontSize: 13,
   },
   paragraph: {
     fontSize: 10,
-    lineHeight: 1.3,
+    lineHeight: 1.35,
     textAlign: 'justify',
   },
   skillGroupRow: {
-    marginBottom: 1,
+    marginBottom: 1.5,
   },
   skillGroupValue: {
     fontSize: 10,
-    lineHeight: 1.3,
+    lineHeight: 1.35,
   },
   skillGroupLabel: {
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Helvetica', fontWeight: 'bold',
   },
   skills: {
     fontSize: 10,
-    lineHeight: 1.3,
+    lineHeight: 1.35,
   },
   item: {
-    marginBottom: 3,
+    marginBottom: 6,
   },
-  itemHeader: {
+  itemHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
   },
   itemTitle: {
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Helvetica', fontWeight: 'bold',
     fontSize: 10.5,
   },
-  itemSubtitle: {
-    marginBottom: 1,
-    fontFamily: 'CMU Serif', fontStyle: 'italic',
+  itemOrganization: {
+    fontFamily: 'Helvetica', fontStyle: 'italic',
+    color: NAVY,
     fontSize: 10,
   },
   duration: {
     flexShrink: 0,
     paddingLeft: 10,
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
-    fontSize: 10,
+    fontFamily: 'Helvetica', fontWeight: 'bold',
+    fontSize: 9.5,
+  },
+  location: {
+    flexShrink: 0,
+    paddingLeft: 10,
+    fontFamily: 'Helvetica', fontStyle: 'italic',
+    color: '#6b7280',
+    fontSize: 9.5,
   },
   bullet: {
     flexDirection: 'row',
-    marginBottom: 0.5,
+    marginTop: 2,
     paddingLeft: 5,
   },
   bulletMarker: {
     width: 9,
-    fontSize: 10,
+    fontSize: 9.5,
   },
   bulletText: {
     flex: 1,
-    fontSize: 10,
-    lineHeight: 1.28,
+    fontSize: 9.5,
+    lineHeight: 1.35,
     textAlign: 'justify',
   },
   educationRow: {
@@ -130,42 +140,41 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   educationBlock: {
-    marginBottom: 3,
+    marginBottom: 4,
   },
   educationDegree: {
-    fontFamily: 'CMU Serif', fontWeight: 'bold',
+    fontFamily: 'Helvetica', fontWeight: 'bold',
     fontSize: 10.5,
   },
   educationInst: {
-    fontFamily: 'CMU Serif', fontStyle: 'italic',
+    fontFamily: 'Helvetica', fontStyle: 'italic',
+    color: NAVY,
     fontSize: 10,
   },
 })
 
-// Renders "Label: value" contact segments with bold labels, joined by pipes.
-// Children stay flat (strings + bold label Texts) so line breaking still
-// happens at spaces; nesting whole segments makes them unbreakable chunks.
-const ContactLine = ({ contact }) => {
+// Contact segments are stacked one per line, right-aligned — an adaptation
+// of the reference's fixed 4-line block that stays correct no matter how
+// many contact fields a given resume actually has.
+const ContactBlock = ({ contact }) => {
   const segments = (contact || '')
     .split(/\n|\|/)
     .map((segment) => segment.trim())
     .filter(Boolean)
 
-  const children = []
-  segments.forEach((segment, index) => {
-    if (index > 0) children.push(' | ')
-    const labeled = segment.match(/^([A-Za-z][A-Za-z ]{1,24}):\s*(.+)$/)
-    if (labeled) {
-      children.push(
-        <Text key={`label-${segment}-${index}`} style={styles.contactLabel}>{labeled[1]}: </Text>,
-        labeled[2],
-      )
-    } else {
-      children.push(segment)
-    }
-  })
-
-  return <Text style={styles.contact}>{children}</Text>
+  return (
+    <View style={styles.contactBlock}>
+      {segments.map((segment, index) => {
+        const labeled = segment.match(/^([A-Za-z][A-Za-z ]{1,24}):\s*(.+)$/)
+        const isLinky = /@|\.[a-z]{2,}|github|linkedin/i.test(segment)
+        return (
+          <Text key={`${segment}-${index}`} style={[styles.contactLine, isLinky && styles.contactLink]}>
+            {labeled ? `${labeled[1]}: ${labeled[2]}` : segment}
+          </Text>
+        )
+      })}
+    </View>
+  )
 }
 
 const Bullets = ({ bullets }) => (
@@ -179,20 +188,23 @@ const Bullets = ({ bullets }) => (
   </>
 )
 
-// The heading is bundled with the first item's small header rows (never the
-// bullets) so it cannot be orphaned at a page break without dragging whole
-// sections to the next page.
+// The heading rides with the first item's header rows (never the bullets)
+// so it can't be orphaned at a page break without dragging the section along.
 const ItemsSection = ({ title, items }) => (
   <View style={styles.section}>
     {items.map((item, index) => (
       <View key={`${item.title}-${index}`} style={styles.item}>
         <View wrap={false}>
           {index === 0 && <Text style={styles.heading}>{title}</Text>}
-          <View style={styles.itemHeader}>
+          <View style={styles.itemHeaderRow}>
             <Text style={styles.itemTitle}>{item.title}</Text>
             {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
           </View>
-          {item.organization && <Text style={styles.itemSubtitle}>{item.organization}</Text>}
+          {item.organization && (
+            <View style={styles.itemHeaderRow}>
+              <Text style={styles.itemOrganization}>{item.organization}</Text>
+            </View>
+          )}
         </View>
         <Bullets bullets={item.bullets || []} />
       </View>
@@ -218,9 +230,6 @@ const Skills = ({ data }) => {
   return <Text style={styles.skills}>{data.skills.join(' • ')}</Text>
 }
 
-// Additional-info values often carry their own "•" bullets (e.g.
-// certifications); render those as a proper list, otherwise as a
-// labeled paragraph.
 const AdditionalSection = ({ item }) => {
   const parts = item.value.split(/\n|(?=•)/).map((part) => part.replace(/^[•\s]+/, '').trim()).filter(Boolean)
   if (parts.length > 1) {
@@ -244,12 +253,15 @@ const AdditionalSection = ({ item }) => {
   )
 }
 
-export const DefaultTemplate = ({ data }) => (
+export const ModernNavyTemplate = ({ data }) => (
   <Document title={`${data.name || 'Candidate'} - Tailored Resume`}>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.name}>{data.name || 'Candidate Name'}</Text>
-        <ContactLine contact={data.contact} />
+        <View style={styles.headerLeft}>
+          <Text style={styles.name}>{data.name || 'Candidate Name'}</Text>
+          {data.experience?.[0]?.title && <Text style={styles.title}>{data.experience[0].title}</Text>}
+        </View>
+        <ContactBlock contact={data.contact} />
       </View>
 
       {data.summary && (

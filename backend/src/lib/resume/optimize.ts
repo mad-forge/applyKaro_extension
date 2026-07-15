@@ -292,12 +292,22 @@ export function assembleResumeData(
     return 'experience';
   };
 
+  const seenKeywordLocations = new Set<string>();
   assembled.addedKeywords = optimized.addedKeywords
     .filter((item) => (
       sourceContains(sourceText, item.keyword)
       && generatedText.toLowerCase().includes(item.keyword.toLowerCase())
     ))
-    .map((item) => ({ ...item, location: normalizeLocation(item.location) }));
+    .map((item) => ({ ...item, location: normalizeLocation(item.location) }))
+    // The model can independently report the same keyword for the same
+    // section from two different bullets; that reads as a duplicate row
+    // in the "Keywords incorporated" list, so keep only the first mention.
+    .filter((item) => {
+      const dedupeKey = `${item.keyword.toLowerCase()}|${item.location}`;
+      if (seenKeywordLocations.has(dedupeKey)) return false;
+      seenKeywordLocations.add(dedupeKey);
+      return true;
+    });
 
   return assembled;
 }
