@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, Loader2, Sparkles, Wand2 } from 'lucide-react'
+import { ArrowLeft, CloudUpload, Download, Link2, Loader2, Sparkles, Wand2 } from 'lucide-react'
 
 export default function ActionFooter({
   step,
@@ -9,10 +9,13 @@ export default function ActionFooter({
   canContinueFromJd,
   pdfBlobUrl,
   tailoredData,
+  cloudLink,
+  isUploadingToCloud,
   onBack,
   onContinueJd,
   onAnalyze,
   onTailor,
+  onSaveToCloud,
   onDownload,
   onStartOver,
 }) {
@@ -64,12 +67,33 @@ export default function ActionFooter({
         )}
 
         {step === 4 && pdfBlobUrl && tailoredData && (
-          <button className="primary-button download-button" type="button" onClick={onDownload}>
-            <Download size={16} strokeWidth={2.5} />
-            Download Tailored PDF
-          </button>
+          <>
+            <button className="primary-button download-button" type="button" onClick={onDownload}>
+              <Download size={16} strokeWidth={2.5} />
+              Download Tailored PDF
+            </button>
+            <button
+              className={`ghost-button ${isUploadingToCloud ? 'is-loading' : ''}`}
+              type="button"
+              onClick={onSaveToCloud}
+              disabled={isUploadingToCloud}
+            >
+              {isUploadingToCloud ? <Loader2 size={14} strokeWidth={2.5} /> : <CloudUpload size={14} strokeWidth={2.5} />}
+              {isUploadingToCloud ? 'Uploading...' : cloudLink ? 'Re-upload to cloud' : 'Get cloud link'}
+            </button>
+          </>
         )}
       </div>
+
+      {step === 4 && cloudLink?.downloadUrl && (
+        <p className="result-message cloud-link" role="status">
+          <Link2 size={13} strokeWidth={2.5} />
+          <a href={cloudLink.downloadUrl} target="_blank" rel="noreferrer">
+            Shareable download link
+          </a>
+          {cloudLink.expiresAt ? ` (expires ${new Date(cloudLink.expiresAt).toLocaleDateString()})` : ''}
+        </p>
+      )}
 
       {step === 4 && pdfBlobUrl && (
         <button className="text-button start-over-link" type="button" onClick={onStartOver}>

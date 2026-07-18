@@ -10,7 +10,9 @@ import type {
   SkillCategory,
 } from './types';
 
-const ANALYSIS_TIMEOUT_MS = 45_000;
+// Generous: large open-weight models (Llama 70B) routed via OpenRouter can be
+// much slower than small hosted models.
+const ANALYSIS_TIMEOUT_MS = 90_000;
 const ANALYSIS_MAX_TOKENS = 6_000;
 const ANALYSIS_CACHE_TTL_MS = 30 * 60 * 1000;
 const ANALYSIS_CACHE_MAX_ENTRIES = 200;

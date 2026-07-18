@@ -240,10 +240,19 @@ export const ResumePDF = ({ data }: { data: ResumeData }) => (
         </View>
       )}
 
-      {data.skills?.length > 0 && (
+      {(data.skillGroups?.length || data.skills?.length > 0) && (
         <View style={styles.section}>
           <Text style={styles.heading}>Technical Skills</Text>
-          <Text style={styles.skills}>{data.skills.join(' • ')}</Text>
+          {data.skillGroups?.length ? (
+            data.skillGroups.map((group, index) => (
+              <Text key={`${group.label}-${index}`} style={styles.skills}>
+                <Text style={{ fontWeight: 'bold' }}>{group.label}: </Text>
+                {group.skills.join(', ')}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.skills}>{data.skills.join(' • ')}</Text>
+          )}
         </View>
       )}
 

@@ -902,6 +902,21 @@ textarea:focus-visible,
   text-align: center;
 }
 
+.result-message.cloud-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 6px 0 0;
+}
+
+.result-message.cloud-link a {
+  color: var(--color-ink-700);
+  font-weight: 600;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
 .footer-actions {
   display: flex;
   gap: 8px;

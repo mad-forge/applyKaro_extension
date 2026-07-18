@@ -3,7 +3,7 @@ import { chatCompletion, extractJsonObject } from '@/lib/ai/openrouter';
 import type { ExtractedResume } from './extract';
 import { sourceContains } from './factual-validation';
 
-const OPTIMIZE_TIMEOUT_MS = 60_000;
+const OPTIMIZE_TIMEOUT_MS = 120_000;
 const OPTIMIZE_MAX_TOKENS = 5_000;
 const MAX_EXPERIENCE_BULLETS = 7;
 const MAX_PROJECT_BULLETS = 3;

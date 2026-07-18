@@ -28,7 +28,8 @@
     "unlimitedStorage",
     "storage",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://*.linkedin.com/*",

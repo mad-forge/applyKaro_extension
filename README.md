@@ -99,12 +99,19 @@ applyKro/
 ```bash
 cd backend
 npm install
-# create .env.local with at least:¯
+# create .env.local with at least:
 #   OPENROUTER_API_KEY=sk-or-...
-#   AI_MODEL=google/gemini-2.5-flash-lite     # needs structured-output + vision support
+#   AI_MODEL=meta-llama/llama-3.3-70b-instruct   # main text model (JD analysis, extract, optimize)
+#   AI_VISION_MODEL=google/gemini-2.5-flash-lite # OCR for scanned/image resumes (needs vision)
 # optional: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (user-resume sync)
-npm run dev          # http://localhost:3000
-npx vitest run       # unit tests
+# optional (cloud links via Cloudflare R2): S3_ENDPOINT, S3_REGION=auto,
+#   S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_PRIVATE
+#   (S3_ALLOW_SELF_SIGNED=true / OPENROUTER_ALLOW_SELF_SIGNED=true behind a
+#   TLS-intercepting proxy)
+npm run dev                    # http://localhost:3000
+npx vitest run                 # unit tests
+node scripts/r2-healthcheck.mjs                        # live R2 upload/download check
+npx vitest run scripts/render-sample-pdf.test.tsx      # render a sample PDF to scripts/out/
 ```
 
 **Extension**
@@ -125,8 +132,16 @@ Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load u
 | `/api/tailor` | POST | multipart `resume` + `jd` | `202 { jobId, pollUrl }` |
 | `/api/tailor?jobId=` | GET | — | `pending / processing / completed / failed`; on success: report + `tailoredAtsScore` + `resumeChanges` + `tailoredData` (render PDF client-side) |
 | `/api/user-resume` | POST/GET | JSON metadata / `?email=` | Persisted resume preference |
+| `/api/extract-jd` | POST | JSON `{ text, url? }` (Readability page text) | `{ isJobDescription, jd }` — AI filter that isolates the JD from page noise |
+| `/api/resume-pdf` | POST | multipart `pdf` (the rendered tailored PDF) | `201 { key, downloadUrl, expiresAt }` — stores in Cloudflare R2, returns a 7-day presigned link |
 
-Rate limits (per IP, in-memory): analyze 20/hr, tailor 5/hr, user-resume 60/hr. JD length 80–60,000 chars; resume files ≤ 8 MB.
+Rate limits (per IP, in-memory): analyze 20/hr, tailor 5/hr, user-resume 60/hr, extract-jd 30/hr, resume-pdf 20/hr. JD length 80–60,000 chars; resume files ≤ 8 MB.
+
+### JD capture tiers (extension)
+
+1. **Highlight & click** — highlighted text on *any* page wins: right-click → **ApplyKro: Tailor with selected text** (opens the side panel with the selection as the JD), or highlight and press **Extract**.
+2. **Known job boards** — LinkedIn/Indeed selector-based scraping (unchanged).
+3. **Any other site** — `@mozilla/readability` strips the page to its main article in the side panel, then `/api/extract-jd` uses the LLM to isolate the job description; falls back to the raw article text if the backend/AI is unreachable.
 
 ## What the AI can and cannot change
 

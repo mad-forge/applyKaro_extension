@@ -6,7 +6,7 @@ import { RequestValidationError } from '@/lib/http/request-validation';
 import { parseModelResume } from './parse-model-resume';
 import { validateTailoredData } from './factual-validation';
 
-const EXTRACTION_TIMEOUT_MS = 60_000;
+const EXTRACTION_TIMEOUT_MS = 120_000;
 const EXTRACTION_MAX_TOKENS = 6_000;
 const FACTS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const FACTS_CACHE_MAX_ENTRIES = 50;

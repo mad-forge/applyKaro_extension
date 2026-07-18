@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Readability } from '@mozilla/readability'
 import './index.css'
 import Header from './components/Header.jsx'
 import Stepper from './components/Stepper.jsx'
@@ -18,6 +19,8 @@ const POLL_INTERVAL_MS = 3000
 const SAVED_RESUME_KEY = 'applyKro:selectedResume'
 const USER_PROFILE_KEY = 'applyKro:userProfile'
 const TEMPLATE_KEY = 'applyKro:selectedTemplate'
+// Written by background.js when the user right-clicks "Tailor with selected text".
+const PENDING_SELECTION_KEY = 'applyKro:pendingSelection'
 
 const chromeStorageGet = (keys) => new Promise((resolve) => {
   if (typeof chrome === 'undefined' || !chrome.storage?.local) {
@@ -97,10 +100,34 @@ const resumeMetadataFromFile = (file) => ({
   lastModified: file.lastModified,
 })
 
-// Runs inside the target tab via chrome.scripting.executeScript. Must be
-// fully self-contained (no references to module scope) since only its source
-// is injected. Kept in sync with content.js as a fresh-injection fallback that
-// survives the content script being orphaned after an extension reload.
+// The extractors below run inside the target tab via
+// chrome.scripting.executeScript. They must be fully self-contained (no
+// references to module scope) since only their source is injected. Kept in
+// sync with content.js as a fresh-injection fallback that survives the
+// content script being orphaned after an extension reload.
+
+// Tier 1: highlighted text always wins — it works on any site and never
+// needs selector maintenance.
+function extractSelectionInPage() {
+  const text = String(window.getSelection()?.toString() || '')
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+  return text.length >= 80 ? text : ''
+}
+
+// Tier 2 input: full page HTML so Readability can parse it in the side panel.
+function capturePageHtmlInPage() {
+  return {
+    html: document.documentElement.outerHTML,
+    url: window.location.href,
+  }
+}
+
+// Known job-board layouts (LinkedIn/Indeed selectors).
 function extractJobDescriptionInPage() {
   const normalize = (text) => {
     const lines = String(text || '')
@@ -178,9 +205,12 @@ function App() {
   const [tailoredData, setTailoredData] = useState(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID)
   const [pdfBlobUrl, setPdfBlobUrl] = useState('')
+  const [cloudLink, setCloudLink] = useState(null)
+  const [isUploadingToCloud, setIsUploadingToCloud] = useState(false)
   const [resultMessage, setResultMessage] = useState('')
   const pollTimerRef = useRef(null)
   const pdfBlobUrlRef = useRef('')
+  const pdfBlobRef = useRef(null)
   const lastExtractedJdRef = useRef('')
   const jdRef = useRef('')
   const processingRef = useRef(false)
@@ -203,7 +233,10 @@ function App() {
   }
 
   useEffect(() => {
-    extractJdFromPage()
+    void (async () => {
+      const usedSelection = await consumePendingSelection()
+      if (!usedSelection) extractJdFromPage()
+    })()
     initializeUserResume()
 
     return () => {
@@ -247,6 +280,20 @@ function App() {
       chrome.tabs.onActivated.removeListener(onActivated)
       chrome.tabs.onUpdated.removeListener(onUpdated)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Apply a context-menu selection even when the side panel is already open.
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) return undefined
+
+    const onChanged = (changes, area) => {
+      if (area !== 'local' || !changes[PENDING_SELECTION_KEY]?.newValue) return
+      void consumePendingSelection()
+    }
+
+    chrome.storage.onChanged.addListener(onChanged)
+    return () => chrome.storage.onChanged.removeListener(onChanged)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -296,18 +343,68 @@ function App() {
     }
   }
 
+  async function runInTab(tabId, func) {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func,
+    })
+    return results?.[0]?.result
+  }
+
+  // Tier 2 fallback for sites without known selectors: Readability strips the
+  // page down to its main article, then the backend AI filter isolates the JD
+  // from any remaining noise. Falls back to the raw article text when the
+  // backend/AI is unreachable — the deep JD analyzer copes with some noise.
+  async function extractGenericJd(tabId) {
+    const captured = await runInTab(tabId, capturePageHtmlInPage)
+    if (!captured?.html) return ''
+
+    const doc = new DOMParser().parseFromString(captured.html, 'text/html')
+    const article = new Readability(doc).parse()
+    const raw = String(article?.textContent || '')
+      .replace(/\u00a0/g, ' ')
+      .split('\n')
+      .map((line) => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n')
+    if (raw.length < 200) return ''
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/extract-jd`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: raw.slice(0, 30000), url: captured.url || '' }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.isJobDescription === false) return ''
+        if (typeof data.jd === 'string' && data.jd.trim().length >= 80) return data.jd.trim()
+      }
+    } catch {
+      // Backend down or AI blocked on this network — raw article text still works.
+    }
+    return raw
+  }
+
   // Returns the JD text, '' when the page was reachable but had no JD, or
-  // null when the page could not be accessed at all.
-  async function extractFromTab(tabId) {
+  // null when the page could not be accessed at all. Priority: highlighted
+  // text → known job-board selectors → (manual extraction only) Readability.
+  async function extractFromTab(tabId, { allowGeneric = false } = {}) {
     // Fresh injection first: it survives extension reloads that orphan the
     // content script, which is the common failure in a long-lived side panel.
     if (chrome.scripting?.executeScript) {
       try {
-        const results = await chrome.scripting.executeScript({
-          target: { tabId },
-          func: extractJobDescriptionInPage,
-        })
-        return results?.[0]?.result || ''
+        const selection = await runInTab(tabId, extractSelectionInPage)
+        if (selection) return selection
+
+        const layout = await runInTab(tabId, extractJobDescriptionInPage)
+        if (layout) return layout
+
+        if (allowGeneric) {
+          const generic = await extractGenericJd(tabId)
+          if (generic) return generic
+        }
+        return ''
       } catch {
         // No host permission for this site or a restricted page; fall through
         // to the declared content script.
@@ -323,6 +420,18 @@ function App() {
         resolve(response?.jd || '')
       })
     })
+  }
+
+  async function consumePendingSelection() {
+    const stored = await chromeStorageGet([PENDING_SELECTION_KEY])
+    const pending = stored[PENDING_SELECTION_KEY]
+    if (!pending?.text) return false
+    await chromeStorageRemove([PENDING_SELECTION_KEY])
+    if (processingRef.current) return false
+    applyExtractedJd(pending.text)
+    setStep(1)
+    setJdStatus('Using your highlighted text as the job description.')
+    return true
   }
 
   const applyExtractedJd = (text) => {
@@ -350,13 +459,13 @@ function App() {
         throw new Error('Could not access the active tab.')
       }
 
-      const text = await extractFromTab(tab.id)
+      const text = await extractFromTab(tab.id, { allowGeneric: true })
       if (text) {
         applyExtractedJd(text)
       } else if (text === null) {
-        setJdStatus('Could not read this page. Open the job posting on LinkedIn/Indeed and press Extract again.')
+        setJdStatus('Could not read this page. Highlight the job description and use the right-click "Tailor with selected text" menu, or paste it below.')
       } else {
-        setJdStatus('No job description was found on this page. Paste it below.')
+        setJdStatus('No job description was found on this page. Highlight it and press Extract again, or paste it below.')
       }
     } catch (error) {
       console.error(error)
@@ -434,6 +543,9 @@ function App() {
   const resetGeneratedPdf = () => {
     setTailoredData(null)
     setPdfBlobUrl('')
+    setCloudLink(null)
+    setIsUploadingToCloud(false)
+    pdfBlobRef.current = null
     if (pdfBlobUrlRef.current) {
       window.URL.revokeObjectURL(pdfBlobUrlRef.current)
       pdfBlobUrlRef.current = ''
@@ -513,6 +625,7 @@ function App() {
       getResumeTemplateMeta(selectedTemplateId).load(),
     ])
     const blob = await pdf(<ResumeTemplate data={data} />).toBlob()
+    pdfBlobRef.current = blob
     const url = window.URL.createObjectURL(blob)
     if (pdfBlobUrlRef.current) {
       window.URL.revokeObjectURL(pdfBlobUrlRef.current)
@@ -647,6 +760,34 @@ function App() {
     setResultMessage('Tailored resume downloaded successfully.')
   }
 
+  // Uploads the rendered PDF to the backend, which stores it in Cloudflare R2
+  // and returns a presigned download link (valid 7 days).
+  const saveToCloud = async () => {
+    if (!pdfBlobRef.current || isUploadingToCloud) return
+    setIsUploadingToCloud(true)
+    try {
+      const formData = new FormData()
+      formData.append('pdf', pdfBlobRef.current, 'Tailored_Resume.pdf')
+      const response = await fetch(`${API_BASE_URL}/resume-pdf`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await parseResponse(response, 'Could not upload the PDF to cloud storage')
+      setCloudLink(data)
+      try {
+        await navigator.clipboard.writeText(data.downloadUrl)
+        setResultMessage('Cloud link copied to clipboard — valid for 7 days.')
+      } catch {
+        setResultMessage('Cloud link ready below — valid for 7 days.')
+      }
+    } catch (error) {
+      console.error(error)
+      setResultMessage(error instanceof Error ? error.message : 'Could not upload the PDF to cloud storage.')
+    } finally {
+      setIsUploadingToCloud(false)
+    }
+  }
+
   const handleContinueFromJd = () => {
     if (!jd.trim()) return
     advanceTo(2)
@@ -723,6 +864,9 @@ function App() {
         onContinueJd={handleContinueFromJd}
         onAnalyze={handleAnalyzeResume}
         onTailor={handleTailorResume}
+        cloudLink={cloudLink}
+        isUploadingToCloud={isUploadingToCloud}
+        onSaveToCloud={saveToCloud}
         onDownload={downloadPdf}
         onStartOver={startOver}
       />

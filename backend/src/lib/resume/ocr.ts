@@ -1,4 +1,4 @@
-import { chatCompletion } from '@/lib/ai/openrouter';
+import { chatCompletion, getVisionModel } from '@/lib/ai/openrouter';
 
 const OCR_TIMEOUT_MS = 90_000;
 const OCR_MAX_TOKENS = 8_000;
@@ -14,6 +14,7 @@ export async function ocrResumeFile(buffer: Buffer, mime: string, filename: stri
   const isPdf = mime === 'application/pdf';
 
   const text = await chatCompletion({
+    model: getVisionModel(),
     responseFormat: 'text',
     timeoutMs: OCR_TIMEOUT_MS,
     maxTokens: OCR_MAX_TOKENS,

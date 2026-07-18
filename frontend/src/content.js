@@ -21,6 +21,13 @@ function normalizeJobDescription(text) {
 }
 
 function extractJobDescription() {
+  // Highlighted text always wins: it works on any layout and never needs
+  // selector maintenance.
+  const selection = normalizeJobDescription(window.getSelection()?.toString() || '');
+  if (selection.length >= 80) {
+    return selection;
+  }
+
   const selectors = [
     '#job-details',
     '.jobs-description__content',

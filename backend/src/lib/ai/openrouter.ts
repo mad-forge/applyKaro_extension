@@ -2,7 +2,10 @@ import { Agent, fetch as undiciFetch } from 'undici';
 
 const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
 const OPENROUTER_ALLOW_SELF_SIGNED = process.env.OPENROUTER_ALLOW_SELF_SIGNED === 'true';
-const DEFAULT_MODEL = 'google/gemini-2.5-flash-lite';
+const DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct';
+// OCR reads images/scanned PDFs, so it needs a multimodal model even when the
+// main AI_MODEL is text-only (e.g. Llama 3.3).
+const DEFAULT_VISION_MODEL = 'google/gemini-2.5-flash-lite';
 
 const INSECURE_OPENROUTER_AGENT = new Agent({
   connect: {
@@ -39,7 +42,12 @@ export function getOpenRouterConfig() {
     apiKey: process.env.OPENROUTER_API_KEY,
     baseUrl: OPENROUTER_BASE_URL.replace(/\/+$/, ''),
     model: process.env.AI_MODEL || DEFAULT_MODEL,
+    visionModel: process.env.AI_VISION_MODEL || DEFAULT_VISION_MODEL,
   };
+}
+
+export function getVisionModel() {
+  return process.env.AI_VISION_MODEL || DEFAULT_VISION_MODEL;
 }
 
 export function isOpenRouterConfigured() {
@@ -54,7 +62,8 @@ function createOpenRouterFetchError(error: unknown) {
     return new Error('OpenRouter TLS verification failed because a self-signed certificate is in the chain. Trust your proxy/root certificate, or set OPENROUTER_ALLOW_SELF_SIGNED=true in backend/.env.local for local development.');
   }
 
-  if (error instanceof DOMException && error.name === 'TimeoutError') {
+  // undici's abort errors are not DOMException instances, so match on name.
+  if (error instanceof Error && (error.name === 'TimeoutError' || /aborted due to timeout/i.test(error.message))) {
     return new Error('The AI provider timed out. Please retry in a moment.');
   }
 
